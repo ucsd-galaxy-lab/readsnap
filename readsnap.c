@@ -2,8 +2,8 @@
 #include <stdlib.h>
 #include <stdarg.h>
 #include <string.h>
-#include "hdf5.h"
-#define FILE "snapshot_600.hdf5"
+#include <hdf5.h>
+#include <mpi.h>
 
 /*! Header for the standard file format.
  */
@@ -218,11 +218,28 @@ int readsnap(char *fname, int ptype) {
 }
 
 
-int main(void)
+int main( int argc, char *argv[])
 {
-   int ptype = 0;
-   printf("Ptype: %d\n", ptype);
-   printf("File name: %s\n", FILE);
-   fflush(stdout);
-   readsnap(FILE, ptype);
+    int numtasks, rank, rc;
+    char *file_name = "snapshot_600.hdf5";
+    rc = MPI_Init(&argc, &argv);
+    if (rc != MPI_SUCCESS) {
+        printf("Error starting MPI program. Terminating.\n");
+        MPI_Abort(MPI_COMM_WORLD, rc);
+    }
+
+    MPI_Comm_size(MPI_COMM_WORLD,&numtasks);
+    MPI_Comm_rank(MPI_COMM_WORLD,&rank);
+    printf("Number of tasks= %d My rank %d\n",numtasks,rank);
+    
+    
+    int ptype = 0;
+    printf("Ptype: %d\n", ptype);
+    printf("File name: %s\n", file_name);
+    fflush(stdout);
+    readsnap(file_name, ptype);
+    
+
+    MPI_Finalize();
+
 }

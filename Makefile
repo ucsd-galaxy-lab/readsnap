@@ -21,7 +21,7 @@ compile: $(OBJS)
 
 .PHONY: run
 run: $(OBJS)
-	source ./activate.sh && ./$(EXEC)
+	source ./activate.sh && ibrun ./$(EXEC)
 
 .PHONY: clean
 clean:
