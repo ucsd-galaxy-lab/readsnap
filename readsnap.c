@@ -110,10 +110,80 @@ int readsnap(char *fname, int ptype) {
  
    double **pos;
    int i;
+   bool isMultiPartFile=false;
 
    char ptype_str[200],dset_str[200];
+   char fnamePart[200],toAppend[200];
+   int filePartIdx=0;
+   char **fileArray; //initialize scope
 
    struct io_header header;
+
+   strcpy(fnamePart,fname);
+   strcat(fnamePart,".hdf5");
+   if(  access(  fnamePart, F_OK) != -1 ) { //Check if the given file exists
+       strcat(fname,".hdf5");
+        /* Allocate array of pointers to rows.*/
+       fileArray = (char **) malloc (1 * sizeof (char *));
+       /*Allocate space for floating point data.*/
+       fileArray[0] = (char *) malloc (1 * 200 * sizeof (char));
+       filePartIdx = 1;
+       strcpy(fileArray[i],fnamePart);
+
+      
+   } else {
+       isMultiPartFile=true;
+
+       while (isMultiPartFile) {
+           sprintf(toAppend,".%d.hdf5",filePartIdx);
+           strcpy(fnamePart,fname);
+           strcat(fnamePart,toAppend);
+
+           if( access( fnamePart, F_OK) != -1) {
+               filePartIdx = filePartIdx+1;
+           } else {
+               isMultiPartFile=false;
+           }
+       }
+
+
+        /* Allocate array of pointers to rows.*/
+       fileArray = (char **) malloc (filePartIdx * sizeof (char *));
+       /*Allocate space for floating point data.*/
+       fileArray[0] = (char *) malloc (filePartIdx * 200 * sizeof (char));
+       /* Set the rest of the pointers to rows to the correct addresses.*/
+       for (i=1; i<filePartIdx; i++)
+           fileArray[i] = fileArray[0] + i * 200;
+      
+       for (i=0;i<filePartIdx;i++) {
+           sprintf(toAppend,".%d.hdf5",i);
+           strcpy(fnamePart,fname);
+           strcat(fnamePart,toAppend);
+           strcpy(fileArray[i],fnamePart);
+       }
+
+       sprintf(toAppend,".0.hdf5");
+       strcat(fname,toAppend);
+       isMultiPartFile=true;
+   }
+   if(  access(  fname, F_OK) != -1 ) {
+       printf("File Exists!\n"); //Verify file now exists
+   } else {
+       printf("Can't Find File. Terminating.\n");
+   }
+
+
+   for (i=0;i<filePartIdx;i++) {
+       printf("i is %d\n",i);
+       strcpy(fnamePart,fileArray[i]);
+       printf("File Array entry is: %s\n", fileArray[i]);
+       fflush(stdout);
+   }
+ 
+   /* MODIFY THIS FOR MPI, MAKE THE INDEX DEPENDENT ON WHICH NODE YOU ARE IN TO LOAD DIFFERENT DATA */
+   strcpy(fileArray[0],fname);  //sets fname to load for this node
+   /***************************/
+   
 
 
 
