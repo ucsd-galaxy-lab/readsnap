@@ -4,6 +4,8 @@
 #include <string.h>
 #include <hdf5.h>
 #include <mpi.h>
+#include <stdbool.h>
+#include <unistd.h>
 
 /*! Header for the standard file format.
  */
@@ -100,6 +102,8 @@ void read_header_attributes_in_hdf5(char *fname, struct io_header *header)
 
 /* Read position for ptype particles from file named fname */
 int readsnap(char *fname, int ptype) {
+   printf("Running Readsnap...\n");
+   fflush(stdout);
    hid_t          fid,group_id,dset_id,dtype;
    hid_t          dataspace,memspace;
    herr_t         status;
@@ -117,10 +121,17 @@ int readsnap(char *fname, int ptype) {
    int filePartIdx=0;
    char **fileArray; //initialize scope
 
+   int rank,numtasks;
+
+   MPI_Comm_size(MPI_COMM_WORLD,&numtasks);
+   MPI_Comm_rank(MPI_COMM_WORLD,&rank);
+   printf("Rank %d: Running Readsnap...\n",rank);
+
    struct io_header header;
 
    strcpy(fnamePart,fname);
    strcat(fnamePart,".hdf5");
+
    if(  access(  fnamePart, F_OK) != -1 ) { //Check if the given file exists
        strcat(fname,".hdf5");
         /* Allocate array of pointers to rows.*/
@@ -152,9 +163,11 @@ int readsnap(char *fname, int ptype) {
        /*Allocate space for floating point data.*/
        fileArray[0] = (char *) malloc (filePartIdx * 200 * sizeof (char));
        /* Set the rest of the pointers to rows to the correct addresses.*/
-       for (i=1; i<filePartIdx; i++)
+
+       for (i=1; i<filePartIdx; i++) {
            fileArray[i] = fileArray[0] + i * 200;
-      
+       }       
+
        for (i=0;i<filePartIdx;i++) {
            sprintf(toAppend,".%d.hdf5",i);
            strcpy(fnamePart,fname);
@@ -162,128 +175,141 @@ int readsnap(char *fname, int ptype) {
            strcpy(fileArray[i],fnamePart);
        }
 
-       sprintf(toAppend,".0.hdf5");
-       strcat(fname,toAppend);
+
+       //sprintf(toAppend,".0.hdf5");
+       //printf("Rank %d: Pre fname strcat...\n",rank);
+       //fflush(stdout);
+       //strcat(fname,toAppend);
+       printf("Rank %d: Pre bool assign...\n",rank);
+       fflush(stdout);
        isMultiPartFile=true;
    }
-   if(  access(  fname, F_OK) != -1 ) {
-       printf("File Exists!\n"); //Verify file now exists
+
+   if(  access(  fileArray[0], F_OK) != -1 ) {
+       printf("Rank %d: File Exists!\n",rank); //Verify file now exists
    } else {
-       printf("Can't Find File. Terminating.\n");
+       printf("Rank %d: Can't Find File. Terminating.\n",rank);
+       return 0;
    }
 
 
    for (i=0;i<filePartIdx;i++) {
-       printf("i is %d\n",i);
+       //printf("i is %d\n",i);
        strcpy(fnamePart,fileArray[i]);
-       printf("File Array entry is: %s\n", fileArray[i]);
-       fflush(stdout);
+       //printf("File Array entry is: %s\n", fileArray[i]);
+       //fflush(stdout);
    }
  
    /* MODIFY THIS FOR MPI, MAKE THE INDEX DEPENDENT ON WHICH NODE YOU ARE IN TO LOAD DIFFERENT DATA */
-   strcpy(fileArray[0],fname);  //sets fname to load for this node
-   /***************************/
+    if (rank<filePartIdx) {
+        printf("Rank %d is loading: %s\n",rank,fileArray[rank]);
+        strcpy(fileArray[rank],fnamePart);  //sets fname to load for this node
+        /***************************/
    
 
 
 
-   /*  Get info from header*/
-   read_header_attributes_in_hdf5(fname, &header);
-   int N = header.npart[ptype];
-   printf("Loading %d particles.\n", N);
-   fflush(stdout);
+        /*  Get info from header*/
+        read_header_attributes_in_hdf5(fnamePart, &header);
+        int N = header.npart[ptype];
+        printf("Loading %d particles.\n", N);
+        fflush(stdout);
 
-   /*Open the HDF5 File*/
-   fid = H5Fopen(fname, H5F_ACC_RDONLY, H5P_DEFAULT);
+        /*Open the HDF5 File*/
+        fid = H5Fopen(fnamePart, H5F_ACC_RDONLY, H5P_DEFAULT);
 
-   printf("Ptype: %d\n", ptype);
-   fflush(stdout);
+        printf("Ptype: %d\n", ptype);
+        fflush(stdout);
 
-   if(header.npart[ptype] > 0)
-   {
-     /*Define the group id string*/
-     sprintf(ptype_str, "/PartType%d",ptype);
-     /*Open the particle type group*/
-     group_id=H5Gopen2(fid,ptype_str,H5P_DEFAULT);
+        if(header.npart[ptype] > 0)
+        {
+          /*Define the group id string*/
+          sprintf(ptype_str, "/PartType%d",ptype);
+          /*Open the particle type group*/
+          group_id=H5Gopen2(fid,ptype_str,H5P_DEFAULT);
 
-     /*Set the dataset id*/
-     sprintf(dset_str,"Coordinates");
-     /*Set the dataset type*/
-     dtype = H5Tcopy(H5T_NATIVE_DOUBLE); //Can just define a library for various keywords/steal from gizmo?
-     /*Open the dataset*/
-     dset_id=H5Dopen2(group_id,dset_str,H5P_DEFAULT);
-
-
+          /*Set the dataset id*/
+          sprintf(dset_str,"Coordinates");
+          /*Set the dataset type*/
+          dtype = H5Tcopy(H5T_NATIVE_DOUBLE); //Can just define a library for various keywords/steal from gizmo?
+          /*Open the dataset*/
+          dset_id=H5Dopen2(group_id,dset_str,H5P_DEFAULT);
 
 
-     /*Define Hyperslab in dataset. Not necesarry for non parallel version*/
-     dsetOffset[0]=0;
-     dsetOffset[1]=0;
-     dsetCount[0]= N; //Just take everything for non parallel version
-     dsetCount[1]= 3;
-     /* Create the memory allocation in the variable space*/
-     dataspace = H5Screate_simple(2,dsetCount,NULL);
-     status = H5Sselect_hyperslab(dataspace,H5S_SELECT_SET,dsetOffset,NULL,dsetCount,NULL);
+
+
+          /*Define Hyperslab in dataset. Not necesarry for non parallel version*/
+          dsetOffset[0]=0;
+          dsetOffset[1]=0;
+          dsetCount[0]= N; //Just take everything for non parallel version
+          dsetCount[1]= 3;
+          /* Create the memory allocation in the variable space*/
+          dataspace = H5Screate_simple(2,dsetCount,NULL);
+          status = H5Sselect_hyperslab(dataspace,H5S_SELECT_SET,dsetOffset,NULL,dsetCount,NULL);
    
-     /*Define memory dataspace*/
-     memDim[0]=N;
-     memDim[1]=3;
-     memspace = H5Screate_simple(2,memDim,NULL); //Rank 2 for vector
+          /*Define memory dataspace*/
+          memDim[0]=N;
+          memDim[1]=3;
+          memspace = H5Screate_simple(2,memDim,NULL); //Rank 2 for vector
    
-     /*Define memory hyperslab*/
-     memOffset[0]=0;
-     memOffset[1]=0;
-     memCount[0]=N;
-     memCount[1]=3;
-     status = H5Sselect_hyperslab(memspace,H5S_SELECT_SET,memOffset,NULL,memCount,NULL);
+          /*Define memory hyperslab*/
+          memOffset[0]=0;
+          memOffset[1]=0;
+          memCount[0]=N;
+          memCount[1]=3;
+          status = H5Sselect_hyperslab(memspace,H5S_SELECT_SET,memOffset,NULL,memCount,NULL);
 
   
-     /*Initialize variables to allocate memory for the data*/
-     hsize_t dims[2] = {3,N};
-     hid_t space;
-     int ndims;
-     space = H5Dget_space(dset_id);
-     ndims = H5Sget_simple_extent_dims(space,dims,NULL);
-     /*****************************************************/
+          /*Initialize variables to allocate memory for the data*/
+          hsize_t dims[2] = {3,N};
+          hid_t space;
+          int ndims;
+          space = H5Dget_space(dset_id);
+          ndims = H5Sget_simple_extent_dims(space,dims,NULL);
+          /*****************************************************/
 
 
  
-     /* Allocate array of pointers to rows.*/
-    pos = (double **) malloc (dims[0] * sizeof (double *));
+          /* Allocate array of pointers to rows.*/
+         pos = (double **) malloc (dims[0] * sizeof (double *));
 
-    /*Allocate space for floating point data.*/
-    pos[0] = (double *) malloc (dims[0] * dims[1] * sizeof (double));
+         /*Allocate space for floating point data.*/
+         pos[0] = (double *) malloc (dims[0] * dims[1] * sizeof (double));
 
  
-     /* Set the rest of the pointers to rows to the correct addresses.*/
-    for (i=1; i<dims[0]; i++)
-        pos[i] = pos[0] + i * dims[1];
+          /* Set the rest of the pointers to rows to the correct addresses.*/
+         for (i=1; i<dims[0]; i++)
+             pos[i] = pos[0] + i * dims[1];
 
 
 
-     /*Push the dataset into the position vector*/
-     status = H5Dread(dset_id,dtype,memspace,dataspace,H5P_DEFAULT,pos[0]); //memspace/dataspace not needed for nonparallel version.
+          /*Push the dataset into the position vector*/
+          status = H5Dread(dset_id,dtype,memspace,dataspace,H5P_DEFAULT,pos[0]); //memspace/dataspace not needed for nonparallel version.
 
-     H5Tclose(dtype);
-     H5Sclose(memspace);
-     H5Sclose(dataspace);
-     H5Dclose(dset_id);
+          H5Tclose(dtype);
+          H5Sclose(memspace);
+          H5Sclose(dataspace);
+          H5Dclose(dset_id);
 
     
 
-   }
+        }
    
-   /*Print some elements to check if reasonable*/
-   printf("[0][0] element: %f\n", pos[0][0]);
-   printf("[1][0] element: %f\n", pos[1][0]);
-   printf("[2][0] element: %f\n\n", pos[2][0]);
-   printf("[0][1] element: %f\n", pos[0][1]);
-   printf("[1][1] element: %f\n", pos[1][1]);
-   printf("[2][1] element: %f\n\n", pos[2][1]);
+        /*Print some elements to check if reasonable*/
+        printf("[0][0] element: %f\n", pos[0][0]);
+        printf("[1][0] element: %f\n", pos[1][0]);
+        printf("[2][0] element: %f\n\n", pos[2][0]);
+        printf("[0][1] element: %f\n", pos[0][1]);
+        printf("[1][1] element: %f\n", pos[1][1]);
+        printf("[2][1] element: %f\n\n", pos[2][1]);
 
-   fflush(stdout);
+        fflush(stdout);
+    }
+    else{
+        printf("Rank %d. Not enough files for this rank\n",rank);
+    }
    
-
+   
    return 0;
 }
 
@@ -291,7 +317,7 @@ int readsnap(char *fname, int ptype) {
 int main( int argc, char *argv[])
 {
     int numtasks, rank, rc;
-    char *file_name = "snapshot_600.hdf5";
+    char *file_name = "test_600";
     rc = MPI_Init(&argc, &argv);
     if (rc != MPI_SUCCESS) {
         printf("Error starting MPI program. Terminating.\n");
@@ -304,9 +330,9 @@ int main( int argc, char *argv[])
     
     
     int ptype = 0;
-    printf("Ptype: %d\n", ptype);
-    printf("File name: %s\n", file_name);
-    fflush(stdout);
+    //printf("Ptype: %d\n", ptype);
+    //printf("File name: %s\n", file_name);
+    //fflush(stdout);
     readsnap(file_name, ptype);
     
 
