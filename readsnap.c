@@ -101,7 +101,7 @@ void read_header_attributes_in_hdf5(char *fname, struct io_header *header)
 
 
 /* Read position for ptype particles from file named fname */
-int readsnap(char *fname, int ptype) {
+int readsnap(char *fname_base, int minSnapNum, int maxSnapNum, int snapStep, int ptype) {
    printf("Running Readsnap...\n");
    fflush(stdout);
    hid_t          fid,group_id,dset_id,dtype;
@@ -114,14 +114,20 @@ int readsnap(char *fname, int ptype) {
  
    double **pos;
    int i;
-   bool isMultiPartFile=false;
+   bool isMultiPartFile,needToLoadMore,startingNewFile;
 
    char ptype_str[200],dset_str[200];
    char fnamePart[200],toAppend[200];
    int filePartIdx=0;
+   int fileCount=0;
+   int fileIdx = maxSnapNum;
+   int fileNum = (maxSnapNum-minSnapNum)/snapStep+1;
    char **fileArray; //initialize scope
 
    int rank,numtasks;
+
+   //char fname[200];
+   //strcpy(fname,fname_base);
 
    MPI_Comm_size(MPI_COMM_WORLD,&numtasks);
    MPI_Comm_rank(MPI_COMM_WORLD,&rank);
@@ -129,79 +135,89 @@ int readsnap(char *fname, int ptype) {
 
    struct io_header header;
 
-   strcpy(fnamePart,fname);
-   strcat(fnamePart,".hdf5");
+   /*Generate Array of Files that need to be loaded*/
+
+   strcpy(fnamePart,fname_base);
+   sprintf(toAppend,"_%d.hdf5",maxSnapNum);
+   strcat(fnamePart,toAppend);
 
    if(  access(  fnamePart, F_OK) != -1 ) { //Check if the given file exists
-       strcat(fname,".hdf5");
+       isMultiPartFile=false;
         /* Allocate array of pointers to rows.*/
-       fileArray = (char **) malloc (1 * sizeof (char *));
+       fileArray = (char **) malloc (fileNum * sizeof (char *));
        /*Allocate space for floating point data.*/
-       fileArray[0] = (char *) malloc (1 * 200 * sizeof (char));
+       fileArray[0] = (char *) malloc (fileNum * 200 * sizeof (char));
        filePartIdx = 1;
-       strcpy(fileArray[i],fnamePart);
-
-      
+       for (i=0;i<fileNum;i++) {
+           strcpy(fnamePart,fname_base);
+           sprintf(toAppend,"_%d.hdf5",maxSnapNum-i);
+           strcat(fnamePart,toAppend);
+           strcpy(fileArray[i],fnamePart);
+       }      
    } else {
        isMultiPartFile=true;
+       needToLoadMore=true;
+       startingNewFile=false;
 
-       while (isMultiPartFile) {
-           sprintf(toAppend,".%d.hdf5",filePartIdx);
-           strcpy(fnamePart,fname);
+       while (needToLoadMore) {
+           sprintf(toAppend,"_%d.%d.hdf5",fileIdx,filePartIdx);
+           strcpy(fnamePart,fname_base);
            strcat(fnamePart,toAppend);
 
            if( access( fnamePart, F_OK) != -1) {
                filePartIdx = filePartIdx+1;
+               fileCount = fileCount+1;
            } else {
-               isMultiPartFile=false;
+               if ( startingNewFile ) {
+                   needToLoadMore=false;
+               }
+               fileIdx = fileIdx-snapStep; //Go to next file
+               filePartIdx=0;
+               if (fileIdx<minSnapNum) {
+                   needToLoadMore=false;
+               }
+               startingNewFile=true;
+     
            }
        }
 
 
         /* Allocate array of pointers to rows.*/
-       fileArray = (char **) malloc (filePartIdx * sizeof (char *));
+       fileArray = (char **) malloc (fileCount * sizeof (char *));
        /*Allocate space for floating point data.*/
-       fileArray[0] = (char *) malloc (filePartIdx * 200 * sizeof (char));
+       fileArray[0] = (char *) malloc (fileCount * 200 * sizeof (char));
        /* Set the rest of the pointers to rows to the correct addresses.*/
 
-       for (i=1; i<filePartIdx; i++) {
+       for (i=1; i<fileCount; i++) {
            fileArray[i] = fileArray[0] + i * 200;
        }       
 
-       for (i=0;i<filePartIdx;i++) {
-           sprintf(toAppend,".%d.hdf5",i);
-           strcpy(fnamePart,fname);
+       filePartIdx=0;
+       fileIdx=maxSnapNum;
+       printf("maxSnapNum is now: %d\n",maxSnapNum);
+       for (i=0;i<fileCount;i++) {
+           sprintf(toAppend,"_%d.%d.hdf5",fileIdx,filePartIdx);
+           strcpy(fnamePart,fname_base);
            strcat(fnamePart,toAppend);
-           strcpy(fileArray[i],fnamePart);
+           if( access( fnamePart, F_OK) != -1) {
+               strcpy(fileArray[i],fnamePart);
+               filePartIdx=filePartIdx+1;
+           } else {
+               fileIdx=fileIdx-1;
+               filePartIdx=0;
+               sprintf(toAppend,"_%d.%d.hdf5",fileIdx,filePartIdx);
+               strcpy(fnamePart,fname_base);
+               strcat(fnamePart,toAppend);
+               strcpy(fileArray[i],fnamePart);
+               filePartIdx=filePartIdx+1;
+           }
        }
 
-
-       //sprintf(toAppend,".0.hdf5");
-       //printf("Rank %d: Pre fname strcat...\n",rank);
-       //fflush(stdout);
-       //strcat(fname,toAppend);
-       printf("Rank %d: Pre bool assign...\n",rank);
-       fflush(stdout);
-       isMultiPartFile=true;
    }
 
-   if(  access(  fileArray[0], F_OK) != -1 ) {
-       printf("Rank %d: File Exists!\n",rank); //Verify file now exists
-   } else {
-       printf("Rank %d: Can't Find File. Terminating.\n",rank);
-       return 0;
-   }
-
-
-   for (i=0;i<filePartIdx;i++) {
-       //printf("i is %d\n",i);
-       strcpy(fnamePart,fileArray[i]);
-       //printf("File Array entry is: %s\n", fileArray[i]);
-       //fflush(stdout);
-   }
  
-   /* MODIFY THIS FOR MPI, MAKE THE INDEX DEPENDENT ON WHICH NODE YOU ARE IN TO LOAD DIFFERENT DATA */
-    if (rank<filePartIdx) {
+   /* This Ordering Should Keep file parts together as much as possible */
+    if (rank<fileCount) {
         printf("Rank %d is loading: %s\n",rank,fileArray[rank]);
         strcpy(fileArray[rank],fnamePart);  //sets fname to load for this node
         /***************************/
@@ -212,14 +228,12 @@ int readsnap(char *fname, int ptype) {
         /*  Get info from header*/
         read_header_attributes_in_hdf5(fnamePart, &header);
         int N = header.npart[ptype];
-        printf("Loading %d particles.\n", N);
+        printf("Rank %d: Loading %d particles.\n",rank, N);
         fflush(stdout);
 
         /*Open the HDF5 File*/
         fid = H5Fopen(fnamePart, H5F_ACC_RDONLY, H5P_DEFAULT);
 
-        printf("Ptype: %d\n", ptype);
-        fflush(stdout);
 
         if(header.npart[ptype] > 0)
         {
@@ -296,12 +310,9 @@ int readsnap(char *fname, int ptype) {
         }
    
         /*Print some elements to check if reasonable*/
-        printf("[0][0] element: %f\n", pos[0][0]);
-        printf("[1][0] element: %f\n", pos[1][0]);
-        printf("[2][0] element: %f\n\n", pos[2][0]);
-        printf("[0][1] element: %f\n", pos[0][1]);
-        printf("[1][1] element: %f\n", pos[1][1]);
-        printf("[2][1] element: %f\n\n", pos[2][1]);
+        printf("Rank %d: [1][0] element: %f\n",rank, pos[1][0]);
+        printf("Rank %d: [0][1] element: %f\n",rank, pos[0][1]);
+        printf("Rank %d: [2][1] element: %f\n\n",rank, pos[2][1]);
 
         fflush(stdout);
     }
@@ -317,7 +328,12 @@ int readsnap(char *fname, int ptype) {
 int main( int argc, char *argv[])
 {
     int numtasks, rank, rc;
-    char *file_name = "test_600";
+   // char *file_name = "test_600";
+    char *file_base = "/oasis/scratch/comet/ctrapp/temp_project/test";
+    int minSnapNum = 599;
+    int maxSnapNum = 600;
+    int snapStep = 1;
+
     rc = MPI_Init(&argc, &argv);
     if (rc != MPI_SUCCESS) {
         printf("Error starting MPI program. Terminating.\n");
@@ -333,7 +349,7 @@ int main( int argc, char *argv[])
     //printf("Ptype: %d\n", ptype);
     //printf("File name: %s\n", file_name);
     //fflush(stdout);
-    readsnap(file_name, ptype);
+    readsnap(file_base, minSnapNum, maxSnapNum, snapStep, ptype);
     
 
     MPI_Finalize();
