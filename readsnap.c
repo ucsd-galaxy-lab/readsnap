@@ -307,10 +307,10 @@ int readsnap(char *fname_base, int minSnapNum, int maxSnapNum, int snapStep, int
       /*****************************************************/
 
       /* Allocate array of pointers to rows.*/
-     data[p_index] = (double **) malloc (dims[0] * sizeof (double *));
+      data[p_index] = (double **) malloc (dims[0] * sizeof (double *));
 
      /*Allocate space for floating point data.*/
-     data[p_index][0] = (double *) malloc (dims[0] * dims[1] * sizeof (double));
+      data[p_index][0] = (double *) malloc (dims[0] * dims[1] * sizeof (double));
       /* Set the rest of the pointers to rows to the correct addresses.*/
       for (i=1; i<dims[0]; i++)
          data[p_index][i] = data[p_index][0] + i * dims[1];
@@ -318,7 +318,20 @@ int readsnap(char *fname_base, int minSnapNum, int maxSnapNum, int snapStep, int
 
 
       /*Push the dataset into the position vector*/
-      status = H5Dread(dset_id,dtype,memspace,dataspace,H5P_DEFAULT,data[p_index][0]); //memspace/dataspace not needed for nonparallel version.
+      if (num_elems==1){ // In case the data is a 1D array
+        double *buffer = (double *) malloc (N * sizeof (double));
+        printf("Hi\n");
+        fflush(stdout);
+        status = H5Dread(dset_id,dtype,H5S_ALL,H5S_ALL,H5P_DEFAULT,buffer); //memspace/dataspace not needed for nonparallel version.
+        printf("Rank %d: buffer[0] element: %f\n",rank, buffer[0]);
+        fflush(stdout);
+        data[p_index][0] = buffer;
+        printf("Rank %d: data[0][0] element: %f\n",rank, data[p_index][0][0]);
+        fflush(stdout);
+
+
+      }
+      else status = H5Dread(dset_id,dtype,H5S_ALL,H5S_ALL,H5P_DEFAULT,data[p_index][0]); //memspace/dataspace not needed for nonparallel version.
 
       H5Tclose(dtype);
       H5Sclose(memspace);
@@ -332,9 +345,9 @@ int readsnap(char *fname_base, int minSnapNum, int maxSnapNum, int snapStep, int
   for (p_index=0;p_index<num_params;p_index++)
   {
     /*Print some elements to check if reasonable*/
-    printf("Rank %d: [1][0] element: %f\n",rank, data[p_index][1][0]);
+    //printf("Rank %d: [1][0] element: %f\n",rank, data[p_index][1][0]);
     printf("Rank %d: [0][1] element: %f\n",rank, data[p_index][0][1]);
-    printf("Rank %d: [2][1] element: %f\n\n",rank, data[p_index][2][1]);
+    //printf("Rank %d: [2][1] element: %f\n\n",rank, data[p_index][2][1]);
     fflush(stdout);
     }
   }
@@ -357,6 +370,7 @@ int main( int argc, char *argv[])
   char *params[] = {
   "Coordinates",
   "Velocities",
+  "Masses"
   };
   int num_params = sizeof(params)/sizeof(params[0]);
 
