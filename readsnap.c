@@ -116,45 +116,32 @@ void read_header_attributes_in_hdf5(char *fname, struct io_header *header)
     H5Fclose(hdf5_file);
 }
 
+struct fileArray {
+  char **fileArray;  // Array of file names
+  int len; // number of files
+}files;
 
-/* Read position for ptype particles from file named fname */
-int readsnap(char *fname_base, int minSnapNum, int maxSnapNum, int snapStep, int ptype, char **params, int num_params) {
-  printf("Running Readsnap...\n");
-  printf("Number of parameters: %d\n Parameters are\n",num_params);
-  int j;
-  for (j = 0; j < num_params; j++) printf ("%s\n", params[j]);
-  fflush(stdout);
-
-  hid_t          fid,group_id,dset_id,dtype;
-  hid_t          dataspace,memspace;
-  herr_t         status;
-
-  hsize_t        memDim[2],dsetDim[2];
-  hsize_t        memCount[2],dsetCount[2];
-  hsize_t        memOffset[2],dsetOffset[2];
-
+struct dataArray {
   double ***data;
-  data = (double ***) malloc (num_params * sizeof (double **));
+  int len[3];
+};
+
+/* Gets list of snapshot files given the base name of the snapshots, the min and max snapshot number, and the set size 
+ * between each snapshot.
+ */
+void getFileNames(char *fname_base, int minSnapNum, int maxSnapNum, int snapStep) {
   int i;
   bool isMultiPartFile,needToLoadMore,startingNewFile;
-
-  int rank,numtasks;
-
-  MPI_Comm_size(MPI_COMM_WORLD,&numtasks);
-  MPI_Comm_rank(MPI_COMM_WORLD,&rank);
-  printf("Rank %d: Running Readsnap...\n",rank);
-
-  struct io_header header;
-
-  char ptype_str[200],dset_str[200];
   char fnamePart[200],toAppend[200];
   int filePartIdx=0;
   int numFiles=0;
-  int fileCount=rank;
   int fileIdx = maxSnapNum;
   int fileNum = (maxSnapNum-minSnapNum)/snapStep+1;
   char **fileArray; //initialize scope
 
+
+  printf("Getting array of files to open...\n");
+  fflush(stdout);
 
   /*Generate Array of Files that need to be loaded*/
 
@@ -232,12 +219,53 @@ int readsnap(char *fname_base, int minSnapNum, int maxSnapNum, int snapStep, int
     }
   }
 
+  // Assign the file array and size to the files struct
+  files.len = numFiles;
+  files.fileArray = fileArray;
+}
+
+
+/* Read position for ptype particles from file named fname */
+int readsnap(int ptype, char **params, int num_params) {
+  printf("Running Readsnap...\n");
+  printf("Number of parameters: %d\n Parameters are\n",num_params);
+  int j;
+  for (j = 0; j < num_params; j++) printf ("%s\n", params[j]);
+  fflush(stdout);
+
+  hid_t          fid,group_id,dset_id,dtype;
+  hid_t          dataspace,memspace;
+  herr_t         status;
+
+  hsize_t        memDim[2],dsetDim[2];
+  hsize_t        memCount[2],dsetCount[2];
+  hsize_t        memOffset[2],dsetOffset[2];
+
+  double ***data;
+  data = (double ***) malloc (num_params * sizeof (double **));
+  //int i;
+  //bool isMultiPartFile,needToLoadMore,startingNewFile;
+
+  int rank,numtasks;
+
+  MPI_Comm_size(MPI_COMM_WORLD,&numtasks);
+  MPI_Comm_rank(MPI_COMM_WORLD,&rank);
+  printf("Rank %d: Running Readsnap...\n",rank);
+
+  struct io_header header;
+
+  int i;
+  char ptype_str[200],dset_str[200];
+  char fnamePart[200];
+  int numFiles = files.len;
+  int fileCount=rank;
+
  
    /* This Ordering Should Keep file parts together as much as possible */
   while (fileCount<numFiles)
   {
-    printf("Rank %d is loading: %s\n",rank,fileArray[fileCount]);
-    strcpy(fileArray[fileCount],fnamePart);  //sets fname to load for this node
+    printf("Rank %d is loading: %s\n",rank,files.fileArray[fileCount]);
+    strcpy(fnamePart, files.fileArray[fileCount]);  //sets fname to load for this node
     /***************************/
    
 
@@ -372,12 +400,11 @@ int main( int argc, char *argv[])
   // List of parameters you want to be loaded from each snapshot
   char *params[] = {
   "Coordinates",
-  "Velocities",
   "Masses"
   };
   int num_params = sizeof(params)/sizeof(params[0]);
 
-  int minSnapNum = 597;
+  int minSnapNum = 598;
   int maxSnapNum = 600;
   int snapStep = 1;
 
@@ -392,8 +419,14 @@ int main( int argc, char *argv[])
   printf("Number of tasks= %d My rank %d\n",numtasks,rank);
 
 
+  // Create the array of file names 
+  getFileNames(file_base, minSnapNum, maxSnapNum, snapStep);
+  printf("Number of files: %d \n", files.len);
+  fflush(stdout);
+
+
   int ptype = 0;
-  readsnap(file_base, minSnapNum, maxSnapNum, snapStep, ptype, params, num_params);
+  readsnap(ptype, params, num_params);
 
 
   MPI_Finalize();
