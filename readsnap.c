@@ -121,6 +121,7 @@ void read_header_attributes_in_hdf5(char *fname, struct io_header *header)
 struct fileArray {
   char **fileArray;  // Array of file names
   int len; // number of files
+  int filesPerSnap; // files per snapshot
 }files;
 
 struct dataArray {
@@ -179,7 +180,8 @@ void getFileNames(char *fname_base, int minSnapNum, int maxSnapNum, int snapStep
        sprintf(toAppend,"_%d.hdf5",maxSnapNum-i);
        strcat(fnamePart,toAppend);
        strcpy(fileArray[i],fnamePart);
-    }      
+    }
+    files.filesPerSnap = 1;
   } else {
     isMultiPartFile=true;
     needToLoadMore=true;
@@ -192,7 +194,7 @@ void getFileNames(char *fname_base, int minSnapNum, int maxSnapNum, int snapStep
 
       if( access( fnamePart, F_OK) != -1) {
         filePartIdx = filePartIdx+1;
-          numFiles = numFiles+1;
+        numFiles = numFiles+1;
       } else {
         if ( startingNewFile )
         {
@@ -204,6 +206,7 @@ void getFileNames(char *fname_base, int minSnapNum, int maxSnapNum, int snapStep
       }
     }
 
+    files.filesPerSnap = numFiles/fileNum;
 
     /* Allocate array of pointers to rows.*/
     fileArray = (char **) malloc (numFiles * sizeof (char *));

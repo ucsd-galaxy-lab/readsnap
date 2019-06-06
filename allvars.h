@@ -44,6 +44,7 @@ header;       /*!< holds header for snapshot files */
 struct fileArray {
   char **fileArray;  // Array of file names
   int len; // number of files
+  int filesPerSnap; // number of files per snapshot
 }files;
 
 // Struct for data to be returned by readsnap
