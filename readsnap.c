@@ -6,6 +6,7 @@
 #include <mpi.h>
 #include <stdbool.h>
 #include <unistd.h>
+#include "shrinking_sphere_parallel.h"
 
 /*! Header for the standard file format.
  */
@@ -361,18 +362,27 @@ struct dataArray readsnap(char *fileName, int ptype, char **params, int num_para
 int main( int argc, char *argv[])
 {
   int numtasks, rank, rc;
-  char *file_base = "/home/cchoban/test/test";
-  struct dataArray dataArray;
-  double ***data; // data to be loaded from snapshots
+  //char *file_base = "/oasis/tscc/scratch/ctrapp/m12m_res7100/output/snapdir_600/snapshot";
+  char *file_base = "/oasis/scratch/comet/ctrapp/temp_project/m12m_res7100/snapdir_600/snapshot";
 
-  // List of parameters you want to be loaded from each snapshot
-  char *params[] = {
-  "Coordinates",
-  "Masses"
-  };
-  int num_params = sizeof(params)/sizeof(params[0]);
 
-  int minSnapNum = 598;
+  int ptype;
+  struct dataArray dataArray_stars,dataArray_gas;
+  double ***data_gas;
+  double ***data_stars; // data to be loaded from snapshots
+  int Ngas,Nstars;
+  char *gas_params[] = {
+      "Coordinates",
+      "Density"
+      };
+  char *star_params[] = {
+      "Coordinates",
+      "Masses"
+      };
+  int num_gas_params = sizeof(gas_params)/sizeof(gas_params[0]);
+  int num_star_params = sizeof(star_params)/sizeof(star_params[0]);
+
+  int minSnapNum = 600;
   int maxSnapNum = 600;
   int snapStep = 1;
 
@@ -398,28 +408,51 @@ int main( int argc, char *argv[])
   // Now go through files taking strides of numtasks until all files have been read
   while (fileCount<numFiles)
   {
-    printf("Rank %d is loading: %s\n",rank,files.fileArray[fileCount]);
-    int ptype = 0;
-    dataArray = readsnap(files.fileArray[fileCount], ptype, params, num_params);
-    data = dataArray.data;
-    fileCount+=numtasks;
 
-    printf("Dimensions of data: params x num_particles x data_elems\n");
-    printf("%d x %d x (depends on data type)\n", dataArray.len[0],dataArray.len[1]);
+    //Load Gas
+      ptype=0;
+      printf("Rank %d is loading: %s\n",rank,files.fileArray[fileCount]);
+      dataArray_gas = readsnap(files.fileArray[fileCount], ptype, gas_params, num_gas_params);
+      data_gas = dataArray_gas.data;
+      Ngas = dataArray_gas.len[1];
 
-    int p_index;
-    for (p_index=0;p_index<dataArray.len[0];p_index++)
-    {
-      printf("Rank %d: [0][1] element: %f\n",rank, data[p_index][0][1]);
-      fflush(stdout);
-    } 
+
+    //Load Stars
+      ptype=1;
+      printf("Rank %d is loading: %s\n",rank,files.fileArray[fileCount]);
+      dataArray_stars = readsnap(files.fileArray[fileCount], ptype, star_params, num_star_params);
+      data_stars = dataArray_stars.data;
+      Nstars = dataArray_stars.len[1];
+
+      fileCount+=numtasks;
+
+      printf("Dimensions of data: params x num_particles x data_elems\n");
+      printf("%d x %d x (depends on data type)\n", dataArray_gas.len[0],dataArray_gas.len[1]);
+
+      int p_index;
+      //for (p_index=0;p_index<dataArray.len[0];p_index++)
+      //{
+      //  printf("Rank %d: [0][1] element: %f\n",rank, data[p_index][0][1]);
+      //  fflush(stdout);
+      //} 
 
   }
+
 
   printf("Rank %d. Out of files to load\n",rank);
   printf("fileCount: %d  numFiles: %d\n",fileCount,numFiles);
   fflush(stdout);
 
+  double rShrinkSphere = 5000.0;
+  double shrinkFactor = 0.7;
+  double rMinSphere = 10.0;
+  int numFilesPerSnap = 4;
+  shrinking_sphere_parallel(data_gas[1], data_gas[0], Ngas, data_stars[1], data_stars[0] , Nstars, numFilesPerSnap, rShrinkSphere, shrinkFactor, rMinSphere);
+
   MPI_Finalize();
 
+  return 0;
+
 }
+
+
