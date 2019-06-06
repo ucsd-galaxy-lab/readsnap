@@ -9,8 +9,13 @@
 #include <math.h>
 
 
-double* calcHydogenNumberDensity(double** gas_metallicities, double** gas_densities, int Ngas){
-    double unit_M = pow(10,10) * 1.98855 * pow(10**33);
+double* calcHydogenNumberDensity(double** gas_metallicities, double** gas_densities, int Ngas)
+{
+    int i;
+    double h_massfrac;
+    double *nH; 
+    nH = (double *) malloc (Ngas * sizeof (double));
+    double unit_M = pow(10,10) * 1.98855 * pow(10,33);
     double proton_mass = 1.6726219*pow(10,-27)*(1000.0/unit_M); //appropriate units
     for (i=0;i<Ngas;i++) {
         h_massfrac = 1 - (gas_metallicities[i][0]+gas_metallicities[i][1]);
@@ -19,8 +24,10 @@ double* calcHydogenNumberDensity(double** gas_metallicities, double** gas_densit
     return nH;
 }
 
-double* calcH1Abundance(double** gas_masses, double** neutral_hydrogen_densities, double** kernalLengths, double** gas_densities, double** gas_metallicities, int Ngas){
-
+/*
+double* calcH1Abundance(double** gas_masses, double** neutral_hydrogen_densities, double** kernalLengths, double** gas_densities, double** gas_metallicities, int Ngas)
+{
+    int i;
     double Z_MW = 0.02; //Assuming Milky way metallicity ~ solar on average
     double Z_solar = 0.02; //From Gizmo Documentation
     double unit_M = pow(10,10)*1.98855*pow(10,33);
@@ -53,3 +60,4 @@ double* calcH1Abundance(double** gas_masses, double** neutral_hydrogen_densities
     return NH1;
 
 }
+*/

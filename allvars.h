@@ -65,6 +65,10 @@ struct dataArray readsnap(char *fileName, int ptype, char **params, int num_para
 
 int shrinking_sphere_parallel(double **gas_densities, double **gas_positions, int Ngas, double **masses, double **positions, int Nstars, int numFilesPerSnap, double rShrinkSphere, double shrinkFactor, double rMinSphere);
 
-struct dataArray getTemp();
+double* find_disk_orientation(double *hydrogen_densities, double **gas_positions, double **gas_masses, double **gas_velocities, double *gas_temperatures, int Ngas, double pos_center[]);
 
-struct dataArray getColumnDensity();
+double* calcHydogenNumberDensity(double** gas_metallicities, double** gas_densities, int Ngas);
+
+double* calcH1Abundance(double** gas_masses, double** neutral_hydrogen_densities, double** kernalLengths, double** gas_densities, double** gas_metallicities, int Ngas);
+
+struct dataArray calcTemp();

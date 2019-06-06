@@ -9,7 +9,7 @@ LIBS   = $(HDF5LIB)
 CFLAGS = $(HDF5INCL)
 
 EXEC = main
-OBJS = main.c readsnap.c shrinking_sphere.c  
+OBJS = main.c readsnap.c disk_finder.c calc_additional_parameters.c
 
 .PHONY: help
 help:
