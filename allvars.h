@@ -72,7 +72,7 @@ int get_values_per_blockelement(char *name);
 
 void read_header_attributes_in_hdf5(char *fname, struct io_header *header);
 
-void getFileNames(char *fname_base, int minSnapNum, int maxSnapNum, int snapStep);
+void getFileNames(char *dirc, char *fname_base, int minSnapNum, int maxSnapNum, int snapStep);
 
 //struct dataArray readsnap(char *fileName, int ptype, char **params, int num_params) ;
 struct dataStruct readsnap(char *fileName, int ptype, char **params, int num_params) ;

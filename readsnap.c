@@ -147,7 +147,7 @@ struct dataStruct {
 /* Gets list of snapshot files given the base name of the snapshots, the min and max snapshot number, and the set size 
  * between each snapshot.
  */
-void getFileNames(char *fname_base, int minSnapNum, int maxSnapNum, int snapStep) {
+void getFileNames(char *dirc, char *fname_base, int minSnapNum, int maxSnapNum, int snapStep) {
   int i;
   bool isMultiPartFile,needToLoadMore,startingNewFile;
   char fnamePart[200],toAppend[200];
@@ -164,7 +164,8 @@ void getFileNames(char *fname_base, int minSnapNum, int maxSnapNum, int snapStep
 
   /*Generate Array of Files that need to be loaded*/
 
-  strcpy(fnamePart,fname_base);
+  strcpy(fnamePart,dirc);
+  strcat(fnamePart,fname_base);
   sprintf(toAppend,"_%d.hdf5",maxSnapNum);
   strcat(fnamePart,toAppend);
 
@@ -176,10 +177,11 @@ void getFileNames(char *fname_base, int minSnapNum, int maxSnapNum, int snapStep
     fileArray[0] = (char *) malloc (fileNum * 200 * sizeof (char));
     filePartIdx = 1;
     for (i=0;i<fileNum;i++) {
-       strcpy(fnamePart,fname_base);
-       sprintf(toAppend,"_%d.hdf5",maxSnapNum-i);
-       strcat(fnamePart,toAppend);
-       strcpy(fileArray[i],fnamePart);
+      strcpy(fnamePart,dirc);
+      strcat(fnamePart,fname_base);
+      sprintf(toAppend,"_%d.hdf5",maxSnapNum-i);
+      strcat(fnamePart,toAppend);
+      strcpy(fileArray[i],fnamePart);
     }
     files.filesPerSnap = 1;
   } else {
@@ -188,8 +190,12 @@ void getFileNames(char *fname_base, int minSnapNum, int maxSnapNum, int snapStep
     startingNewFile=false;
 
     while (needToLoadMore) {
+      sprintf(toAppend,"_%d/",fileIdx);
+      strcpy(fnamePart,dirc);
+      strcat(fnamePart,"snapdir");
+      strcat(fnamePart,toAppend);
+      strcat(fnamePart,fname_base);
       sprintf(toAppend,"_%d.%d.hdf5",fileIdx,filePartIdx);
-      strcpy(fnamePart,fname_base);
       strcat(fnamePart,toAppend);
 
       if( access( fnamePart, F_OK) != -1) {
@@ -222,8 +228,12 @@ void getFileNames(char *fname_base, int minSnapNum, int maxSnapNum, int snapStep
     fileIdx=maxSnapNum;
     printf("maxSnapNum is now: %d\n",maxSnapNum);
     for (i=0;i<numFiles;i++) {
+      sprintf(toAppend,"_%d/",fileIdx);
+      strcpy(fnamePart,dirc);
+      strcat(fnamePart,"snapdir");
+      strcat(fnamePart,toAppend);
+      strcat(fnamePart,fname_base);
       sprintf(toAppend,"_%d.%d.hdf5",fileIdx,filePartIdx);
-      strcpy(fnamePart,fname_base);
       strcat(fnamePart,toAppend);
       if( access( fnamePart, F_OK) != -1) {
         strcpy(fileArray[i],fnamePart);

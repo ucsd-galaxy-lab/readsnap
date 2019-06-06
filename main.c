@@ -12,7 +12,8 @@
 int main( int argc, char *argv[])
 {
   int numtasks, rank, rc;
-  char *file_base = "/oasis/scratch/comet/ctrapp/temp_project/m12m_res7100/snapdir_600/snapshot";
+  char *dirc = "/oasis/scratch/comet/ctrapp/temp_project/m12m_res7100/";
+  char *file_base = "snapshot";
 
   int ptype;
   struct dataStruct dataGas,dataStars;
@@ -52,13 +53,14 @@ int main( int argc, char *argv[])
 
 
   // Create the array of file names 
-  getFileNames(file_base, minSnapNum, maxSnapNum, snapStep);
+  getFileNames(dirc, file_base, minSnapNum, maxSnapNum, snapStep);
   printf("Number of files: %d \n", files.len);
   fflush(stdout);
 
   int fileCount = rank;
   int numFiles = files.len;
   int numFilesPerSnap = files.filesPerSnap;
+
 
   // Check that we have the right number of nodes for the given number of files per snapshot
   MPI_Barrier(MPI_COMM_WORLD);
