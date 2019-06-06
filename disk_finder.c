@@ -7,7 +7,7 @@
 #include <unistd.h>
 #include <math.h>
 
-int shrinking_sphere_parallel(double **gas_densities, double **gas_positions, int Ngas, double **masses, double **positions, int Nstars, int numFilesPerSnap, double rShrinkSphere, double shrinkFactor, double rMinSphere)
+int shrinking_sphere_parallel(double *gas_densities, double **gas_positions, int Ngas, double *masses, double **positions, int Nstars, int numFilesPerSnap, double rShrinkSphere, double shrinkFactor, double rMinSphere)
 {
 //Find the maximum density as first guess for center
     int rank,group_number,group_rank,numtasks;
@@ -48,18 +48,23 @@ int shrinking_sphere_parallel(double **gas_densities, double **gas_positions, in
         double value;
         int idx_rank;
     } in, out;
-    in.value = 0.0; //Initialize
-    in.value = gas_densities[0][0];
+    printf("Rank %d: Ping\n",rank);
+    fflush(stdout);
+    in.value = gas_densities[0];
     in.idx_rank = group_rank;
+    printf("Rank %d: initialized in/out\n",rank);
+    fflush(stdout);
 
 
 /*Find the maximum value on this rank*/
     for (i=1; i < Ngas; i++){
-        if (in.value < gas_densities[0][i]) {
-            in.value = gas_densities[0][i];
+        if (in.value < gas_densities[i]) {
+            in.value = gas_densities[i];
             maxindex = i;
         }
     }
+    printf("Rank %d: looped over in/out\n",rank);
+    fflush(stdout);
     //in.index=rank*Ngas+in.index; //Define a global index
 /*Pass Maximum Value to Reduction Algorithm*/
     MPI_Reduce( &in, &out , 1, MPI_DOUBLE_INT, MPI_MAXLOC, 0, new_comm);
@@ -120,10 +125,10 @@ int shrinking_sphere_parallel(double **gas_densities, double **gas_positions, in
 
 
             if (r2 < (rShrinkSphere*rShrinkSphere)){
-                mass_sum += masses[0][i];
-                mw_pos_sum[0] += masses[0][i]*positions[i][0]; 
-                mw_pos_sum[1] += masses[0][i]*positions[i][1]; 
-                mw_pos_sum[2] += masses[0][i]*positions[i][2];
+                mass_sum += masses[i];
+                mw_pos_sum[0] += masses[i]*positions[i][0]; 
+                mw_pos_sum[1] += masses[i]*positions[i][1]; 
+                mw_pos_sum[2] += masses[i]*positions[i][2];
             }
         }
 
@@ -165,10 +170,10 @@ int shrinking_sphere_parallel(double **gas_densities, double **gas_positions, in
             r2 = dx*dx+dy*dy+dz*dz;
 
             if (r2 < (rShrinkSphere*rShrinkSphere)){
-                mass_sum += masses[0][i];
-                mw_pos_sum[0] += masses[0][i]*positions[i][0]; 
-                mw_pos_sum[1] += masses[0][i]*positions[i][1]; 
-                mw_pos_sum[2] += masses[0][i]*positions[i][2]; 
+                mass_sum += masses[i];
+                mw_pos_sum[0] += masses[i]*positions[i][0]; 
+                mw_pos_sum[1] += masses[i]*positions[i][1]; 
+                mw_pos_sum[2] += masses[i]*positions[i][2]; 
             }
         }
 

@@ -52,18 +52,34 @@ struct dataArray {
   int len[2]; // dimensions of data array
 };
 
+struct dataStruct {
+  double **coordinates;
+  double **velocities;
+  double **metallicity;
+  double *masses;
+  double *density;
+  int *pids;
+  int *cids;
+  double *ElectronAbundance;
+  double *NeutralHydrogenAbundance;
+  double *smoothingLengths;
+  double *internalEnergy;
+  int len[2];
+};
+
 int get_values_per_blockelement(char *name);
 
 void read_header_attributes_in_hdf5(char *fname, struct io_header *header);
 
 void getFileNames(char *fname_base, int minSnapNum, int maxSnapNum, int snapStep);
 
-struct dataArray readsnap(char *fileName, int ptype, char **params, int num_params) ;
+//struct dataArray readsnap(char *fileName, int ptype, char **params, int num_params) ;
+struct dataStruct readsnap(char *fileName, int ptype, char **params, int num_params) ;
 
 
 // These functions do postprocessing on snapshot data
 
-int shrinking_sphere_parallel(double **gas_densities, double **gas_positions, int Ngas, double **masses, double **positions, int Nstars, int numFilesPerSnap, double rShrinkSphere, double shrinkFactor, double rMinSphere);
+int shrinking_sphere_parallel(double *gas_densities, double **gas_positions, int Ngas, double *masses, double **positions, int Nstars, int numFilesPerSnap, double rShrinkSphere, double shrinkFactor, double rMinSphere);
 
 double* find_disk_orientation(double *hydrogen_densities, double **gas_positions, double **gas_masses, double **gas_velocities, double *gas_temperatures, int Ngas, double pos_center[]);
 

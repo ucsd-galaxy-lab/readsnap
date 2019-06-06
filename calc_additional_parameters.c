@@ -25,7 +25,7 @@ double* calcHydogenNumberDensity(double** gas_metallicities, double** gas_densit
 }
 
 
-double* calcH1Abundance(double** gas_masses, double** neutral_hydrogen_densities, double** kernalLengths, double** gas_densities, double** gas_metallicities, int Ngas)
+double* calcH1Abundance(double* gas_masses, double* neutral_hydrogen_densities, double* kernalLengths, double* gas_densities, double** gas_metallicities, int Ngas)
 {
     int i;
     double Z_MW = 0.02; //Assuming Milky way metallicity ~ solar on average
@@ -61,5 +61,27 @@ double* calcH1Abundance(double** gas_masses, double** neutral_hydrogen_densities
 
     return NH1;
 
+}
+
+double * calcTemperatures(double* internalEnergy,double* electronAbundance,double* metallicity, int Npart)
+{
+  double unit_L = 3.086*pow(10,21);
+  double unit_V = 1.0*pow(10,5);
+  double unit_T = unit_L/unit_V;
+  double unit_M = pow(10,10) * 1.98855 * pow(10,33);
+  double gamma = 5/3;
+  double k_Boltzmann = 1.38064852*pow(10,-23)*pow((100.0/unit_L),2)*(1000.0/unit_M)*pow(unit_T,2);
+  double proton_mass = 1.6726219*pow(10,-27)*(1000.0/unit_M)
+  double mu,mean_molecular_weight
+  double temperatures[Npart]
+  for (i=0;i<Npart;i++) {
+    helium_mass_fraction = metallicity[i][1];
+    y_helium = helium_mass_fraction / (4*(1-helium_mass_fraction))
+    mu = (1 + 4*y_helium) / (1+y_helium+electronAbundance[i]);
+    mean_molecular_weight = mu*proton_mass;
+    temperatures[i] = mean_molecular_weight * (gamma-1) * internalEnergy / k_Boltzmann;
+  }
+
+return temperatures;
 }
 

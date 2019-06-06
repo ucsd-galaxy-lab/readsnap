@@ -50,7 +50,7 @@ extern struct io_header
 header;       /*!< holds header for snapshot files */
 
 
-int get_values_per_blockelement(char *name)
+int get_values_per_blockelement(char *name, int flag_metals)
 {
     int values = 0;
     
@@ -58,8 +58,10 @@ int get_values_per_blockelement(char *name)
       values = 3;
     else if (strcmp(name, "Masses") == 0 || strcmp(name, "ParticleIDs") == 0 || strcmp(name, "Density") == 0 || strcmp(name, "ElectronAbundance") == 0 || strcmp(name, "NeutralHydrogenAbundance") == 0)
       values = 1;
-    else if (strcmp(name, "metallicity") == 0)
-      values = 15;
+    else if (strcmp(name, "Metallicity") == 0){
+      printf("In Metallicity block element!\n");
+      values = flag_metals; //Only take total metallicity and helium for now
+    }
     else
       values = 0;
 
@@ -111,6 +113,10 @@ void read_header_attributes_in_hdf5(char *fname, struct io_header *header)
     hdf5_attribute = H5Aopen_name(hdf5_headergrp, "Flag_DoublePrecision");
     H5Aread(hdf5_attribute, H5T_NATIVE_INT, &header->flag_doubleprecision);
     H5Aclose(hdf5_attribute);
+
+    hdf5_attribute = H5Aopen_name(hdf5_headergrp, "Flag_Metals");
+    H5Aread(hdf5_attribute, H5T_NATIVE_INT, &header->flag_metals);
+    H5Aclose(hdf5_attribute);
     
     H5Gclose(hdf5_headergrp);
     H5Fclose(hdf5_file);
@@ -126,6 +132,21 @@ struct dataArray {
   int len[2];
 };
 
+struct dataStruct {
+  double **coordinates;
+  double **velocities;
+  double **metallicity;
+  double *masses;
+  double *density;
+  int *pids;
+  int *cids;
+  double *ElectronAbundance;
+  double *NeutralHydrogenAbundance;
+  double *smoothingLengths;
+  double *internalEnergy;
+  int len[2];
+};
+
 /* Gets list of snapshot files given the base name of the snapshots, the min and max snapshot number, and the set size 
  * between each snapshot.
  */
@@ -138,6 +159,7 @@ void getFileNames(char *fname_base, int minSnapNum, int maxSnapNum, int snapStep
   int fileIdx = maxSnapNum;
   int fileNum = (maxSnapNum-minSnapNum)/snapStep+1;
   char **fileArray; //initialize scope
+
 
 
   printf("Getting array of files to open...\n");
@@ -226,7 +248,7 @@ void getFileNames(char *fname_base, int minSnapNum, int maxSnapNum, int snapStep
 
 
 /* Read position for ptype particles from file named fname */
-struct dataArray readsnap(char *fileName, int ptype, char **params, int num_params) {
+struct dataStruct readsnap(char *fileName, int ptype, char **params, int num_params) {
   printf("Running Readsnap...\n");
 
   hid_t          fid,group_id,dset_id,dtype;
@@ -237,9 +259,12 @@ struct dataArray readsnap(char *fileName, int ptype, char **params, int num_para
   hsize_t        memCount[2],dsetCount[2];
   hsize_t        memOffset[2],dsetOffset[2];
 
-  struct dataArray dataArray;
-  double ***data;
-  data = (double ***) malloc (num_params * sizeof (double **));
+  //struct dataArray dataArray;
+  //double *buffer;
+ // double ***data;
+  struct dataStruct dataStruct;
+  char *name;
+  //data = (double ***) malloc (num_params * sizeof (double **));
 
   int rank,numtasks;
 
@@ -266,6 +291,7 @@ struct dataArray readsnap(char *fileName, int ptype, char **params, int num_para
   int p_index; // parameter index
   int num_elems; // number of elements for given parameter
 
+
   if(header.npart[ptype] > 0)
   {
     /*Define the group id string*/
@@ -286,7 +312,7 @@ struct dataArray readsnap(char *fileName, int ptype, char **params, int num_para
       dset_id=H5Dopen2(group_id,dset_str,H5P_DEFAULT);
 
 
-      num_elems = get_values_per_blockelement(params[p_index]);
+      num_elems = get_values_per_blockelement(params[p_index],header.flag_metals);
 
       /*Define Hyperslab in dataset. Not necesarry for non parallel version*/
       dsetOffset[0]=0;
@@ -317,30 +343,76 @@ struct dataArray readsnap(char *fileName, int ptype, char **params, int num_para
       ndims = H5Sget_simple_extent_dims(space,dims,NULL);
       /*****************************************************/
 
-      /* Allocate array of pointers to rows.*/
-      data[p_index] = (double **) malloc (dims[0] * sizeof (double *));
 
-     /*Allocate space for floating point data.*/
-      data[p_index][0] = (double *) malloc (dims[0] * dims[1] * sizeof (double));
-      /* Set the rest of the pointers to rows to the correct addresses.*/
-      for (i=1; i<dims[0]; i++)
-         data[p_index][i] = data[p_index][0] + i * dims[1];
+
+
+      name = params[p_index];
+
+      if (strcmp(name, "Coordinates")==0){
+        dataStruct.coordinates = (double **) malloc (dims[0] * sizeof (double*));
+        dataStruct.coordinates[0] = (double *) malloc (dims[0] * dims[1] *sizeof (double));
+        for (i=1;i<dims[0];i++){dataStruct.coordinates[i] = dataStruct.coordinates[0]+i*dims[1];}
+        status = H5Dread(dset_id,dtype,memspace,dataspace,H5P_DEFAULT,dataStruct.coordinates[0]);
+      }
+
+      if (strcmp(name, "Velocities")==0){
+        dataStruct.velocities = (double **) malloc (dims[0] * sizeof (double*));
+        dataStruct.velocities[0] = (double *) malloc (dims[0] * dims[1] *sizeof (double));
+        for (i=1;i<dims[0];i++){dataStruct.velocities[i] = dataStruct.velocities[0]+i*dims[1];}
+        status = H5Dread(dset_id,dtype,memspace,dataspace,H5P_DEFAULT,dataStruct.velocities[0]);
+      }
+
+      if (strcmp(name, "Density")==0){
+        printf("Rank %d: In Density!\n",rank);
+        dataStruct.density = (double *) malloc (dims[0] * sizeof (double));
+        status = H5Dread(dset_id,dtype,H5S_ALL,H5S_ALL,H5P_DEFAULT,dataStruct.density);
+        
+      }
+
+      if (strcmp(name, "Masses")==0){
+        printf("Rank %d: In Masses!\n",rank);
+        dataStruct.masses = (double *) malloc (dims[0] * sizeof (double));
+        status = H5Dread(dset_id,dtype,H5S_ALL,H5S_ALL,H5P_DEFAULT,dataStruct.masses);
+      }
+
+      if (strcmp(name, "Metallicity")==0){
+        dataStruct.metallicity = (double **) malloc (dims[0] * sizeof (double*));
+        dataStruct.metallicity[0] = (double *) malloc (dims[0] * dims[1] *sizeof (double));
+        for (i=1;i<dims[0];i++){dataStruct.metallicity[i] = dataStruct.metallicity[0]+i*dims[1];}
+        status = H5Dread(dset_id,dtype,memspace,dataspace,H5P_DEFAULT,dataStruct.metallicity[0]);
+      }
+
+        
+        
+
+//      if (num_elems>1){
+       /* Allocate array of pointers to rows.*/
+//        double **data = (double **) malloc (dims[0] * sizeof (double *));
+
+        /*Allocate space for floating point data.*/
+//        data[p_index][0] = (double *) malloc (dims[0] * dims[1] * sizeof (double));
+        /* Set the rest of the pointers to rows to the correct addresses.*/
+//        for (i=1; i<dims[0]; i++)
+//           data[p_index][i] = data[p_index][0] + i * dims[1];
+//      }
+//      else if (num_elems==1){
+          
 
       /*Push the dataset into the position vector*/
-      if (num_elems==1){ // In case the data is a 1D array
-        double *buffer = (double *) malloc (N * sizeof (double));
-        fflush(stdout);
-        status = H5Dread(dset_id,dtype,H5S_ALL,H5S_ALL,H5P_DEFAULT,buffer); //memspace/dataspace not needed for nonparallel version.
+//      if (num_elems==1){ // In case the data is a 1D array
+//        buffer = (double *) malloc (N * sizeof (double));
+/*        fflush(stdout);
+        status = H5Dread(dset_id,dtype,H5S_ALL,H5S_ALL,H5P_DEFAULT,buffer);
         printf("Rank %d: buffer[0] element: %f\n",rank, buffer[0]);
         fflush(stdout);
         data[p_index][0] = buffer;
         printf("Rank %d: data[0][0] element: %f\n",rank, data[p_index][0][0]);
         fflush(stdout);
-
+        //free(buffer);
 
       }
-      else status = H5Dread(dset_id,dtype,H5S_ALL,H5S_ALL,H5P_DEFAULT,data[p_index][0]); //memspace/dataspace not needed for nonparallel version.
-
+      else status = H5Dread(dset_id,dtype,memspace,dataspace,H5P_DEFAULT,data[p_index][0]); //memspace/dataspace not needed for nonparallel version.
+*/
       H5Tclose(dtype);
       H5Sclose(memspace);
       H5Sclose(dataspace);
@@ -349,8 +421,8 @@ struct dataArray readsnap(char *fileName, int ptype, char **params, int num_para
     }
   }
 
-  dataArray.data = data;
-  dataArray.len[0]=num_params; dataArray.len[1]=N;
+  //dataArray.data = data;
+  dataStruct.len[0]=num_params; dataStruct.len[1]=N;
 
-  return dataArray;
+  return dataStruct;
 }

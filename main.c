@@ -17,13 +17,16 @@ int main( int argc, char *argv[])
 
 
   int ptype;
-  struct dataArray dataArray_stars,dataArray_gas;
-  double ***data_gas;
-  double ***data_stars; // data to be loaded from snapshots
+  //struct dataArray dataArray_stars,dataArray_gas;
+  struct dataStruct dataGas,dataStars;
+  //double ***data_gas;
+  //double ***data_stars; // data to be loaded from snapshots
   int Ngas,Nstars;
   char *gas_params[] = {
       "Coordinates",
-      "Density"
+      "Density",
+      "Velocities",
+      "Metallicity"
       };
   char *star_params[] = {
       "Coordinates",
@@ -61,36 +64,44 @@ int main( int argc, char *argv[])
 
     //Load Gas
       ptype=0;
-      printf("Rank %d is loading: %s\n",rank,files.fileArray[fileCount]);
-      dataArray_gas = readsnap(files.fileArray[fileCount], ptype, gas_params, num_gas_params);
-      data_gas = dataArray_gas.data;
-      Ngas = dataArray_gas.len[1];
+      printf("Rank %d is loading GAS: %s\n",rank,files.fileArray[fileCount]);
+      dataGas = readsnap(files.fileArray[fileCount], ptype, gas_params, num_gas_params);
+      //data_gas = dataArray_gas.data;
+      Ngas = dataGas.len[1];
+      //printf("Rank %d: Metallicity entries are: %f, %f\n",rank,data_gas[2][0][0],data_gas[2][0][1]);
 
 
     //Load Stars
       ptype=1;
-      printf("Rank %d is loading: %s\n",rank,files.fileArray[fileCount]);
-      dataArray_stars = readsnap(files.fileArray[fileCount], ptype, star_params, num_star_params);
-      data_stars = dataArray_stars.data;
-      Nstars = dataArray_stars.len[1];
+      printf("Rank %d is loading STARS: %s\n",rank,files.fileArray[fileCount]);
+      dataStars = readsnap(files.fileArray[fileCount], ptype, star_params, num_star_params);
+      //data_stars = dataArray_stars.data;
+      Nstars = dataStars.len[1];
 
       fileCount+=numtasks;
 
-      printf("Dimensions of data: params x num_particles x data_elems\n");
-      printf("%d x %d x (depends on data type)\n", dataArray_gas.len[0],dataArray_gas.len[1]);
+      //printf("Dimensions of data: params x num_particles x data_elems\n");
+      //printf("%d x %d x (depends on data type)\n", dataGas.len[0],dataGas.len[1]);
   }
-
+  printf("Rank %d: Trying to print a thing!!\n",rank);
+  printf("Rank %d: gasMetal[0][0] is %f\n",rank,dataGas.metallicity[0][0]);
+  printf("Rank %d: gasMetal[0][1] is %f\n",rank,dataGas.metallicity[0][1]);
 
   printf("Rank %d. Out of files to load\n",rank);
   printf("fileCount: %d  numFiles: %d\n",fileCount,numFiles);
   fflush(stdout);
 
+  nH = calcHydrogenNumberDensity(dataGas.metallicity,dataGas.density,Ngas);
+  NH1 = calcH1Abundance(dataGas.masses,dataGas.NeutralHydrogenAbundance,dataGas.smoothingLengths,dataGas.density,dataGas.metallicity,Ngas);
+  gasTemp = calcTemperatures(dataGas.internalEnergy);
   double rShrinkSphere = 5000.0;
   double shrinkFactor = 0.7;
   double rMinSphere = 10.0;
   int numFilesPerSnap = 4;
-  shrinking_sphere_parallel(data_gas[1], data_gas[0], Ngas, data_stars[1], data_stars[0] , Nstars, numFilesPerSnap, rShrinkSphere, shrinkFactor, rMinSphere);
+  shrinking_sphere_parallel(dataGas.density, dataGas.coordinates, Ngas, dataStars.masses, dataStars.coordinates , Nstars, numFilesPerSnap, rShrinkSphere, shrinkFactor, rMinSphere);
 
+  //free(dataArray_gas.data);
+  //free(dataArray_stars.data);
   MPI_Finalize();
 
   return 0;
