@@ -8,8 +8,8 @@ LIBS   = $(HDF5LIB)
 
 CFLAGS = $(HDF5INCL)
 
-EXEC = readsnap
-OBJS = readsnap.c
+EXEC = main
+OBJS = main.c readsnap.c shrinking_sphere.c  
 
 .PHONY: help
 help:
