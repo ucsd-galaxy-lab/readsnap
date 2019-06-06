@@ -24,7 +24,7 @@ double* calcHydogenNumberDensity(double** gas_metallicities, double** gas_densit
     return nH;
 }
 
-/*
+
 double* calcH1Abundance(double** gas_masses, double** neutral_hydrogen_densities, double** kernalLengths, double** gas_densities, double** gas_metallicities, int Ngas)
 {
     int i;
@@ -35,11 +35,13 @@ double* calcH1Abundance(double** gas_masses, double** neutral_hydrogen_densities
     double mu_H = 2.3*pow(10,-27)*1000/unit_M;
     double M_H = 1.67353269159582103*pow(10,-27)*1000/unit_M;
 
-    double Z,sobColDens,tau,chi,s;
-    double fH2[Ngas],NH1[Ngas];
+    double Z,sobColDens,tau,chi,s,fH1;
+    double *fH2, *NH1;
+    fH2 = (double *) malloc (Ngas * sizeof (double));
+    NH1 = (double *) malloc (Ngas * sizeof (double));
     double epsilon = pow(10,-20);
     for (i=0;i<Ngas;i++) {
-        Z=gas_metallicites[i][0];
+        Z = gas_metallicities[i][0];
         sobColDens=kernalLengths[0][i]*gas_densities[0][i];
         tau = sobColDens*Z / (mu_H*Z_MW) * pow(10,-21) / pow(unit_L,2);
         if (tau==0){tau=epsilon;}//Avoid Divide by zero
@@ -51,8 +53,8 @@ double* calcH1Abundance(double** gas_masses, double** neutral_hydrogen_densities
         
         fH2[i] = (1-0.5*s) / (1+0.25*s);
         if (fH2<0){fH2=0;}//Get rid of nonphysical negative values
-        fH1 = neutral_hydrogen_densities[0][i] * (1-Z-gas_metallicites[i][1]) * (1-fH2);
-        NH1[i] = gas_masses[0][i]*fH1 / M_H
+        fH1 = neutral_hydrogen_densities[0][i] * (1-Z-gas_metallicities[i][1]) * (1-fH2[i]);
+        NH1[i] = gas_masses[0][i]*fH1 / M_H;
 
         
     }
@@ -60,4 +62,4 @@ double* calcH1Abundance(double** gas_masses, double** neutral_hydrogen_densities
     return NH1;
 
 }
-*/
+

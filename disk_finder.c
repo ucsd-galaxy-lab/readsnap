@@ -198,8 +198,8 @@ int shrinking_sphere_parallel(double **gas_densities, double **gas_positions, in
     return 0;
 }
 
-/*
-double* find_disk_orientation(double *hydrogen_densities, double **gas_positions, double **gas_masses, double **gas_velocities, double *gas_temperatures, int Ngas, double pos_center[])
+
+double* find_disk_orientation(double *hydrogen_densities, double **gas_positions, double **gas_masses, double **gas_velocities, double *gas_temperatures, int Ngas, double pos_center[], int numFilesPerSnap)
 {
 
     int rank,group_number,group_rank,numtasks;
@@ -236,8 +236,11 @@ double* find_disk_orientation(double *hydrogen_densities, double **gas_positions
     MPI_Comm_create(MPI_COMM_WORLD, new_group, &new_comm);
     
 
-    double Lsum[3],Lranksum[3],Lhat[3];
+    double Lsum[3],Lranksum[3],Lmag;
     double r2,dx,dy,dz;
+    double rCore=10;
+    double *Lhat;
+    Lhat = (double *) malloc (3 * sizeof (double));
 
     for (i=0;i<Ngas;i++) {
         dx = gas_positions[i][0]-pos_center[0];
@@ -247,15 +250,16 @@ double* find_disk_orientation(double *hydrogen_densities, double **gas_positions
       //  h_massfrac = 1 - (gas_metallicities[i][0]+gas_metallicities[i][1]);
       //  nH = (gas_densities[0][i]*h_massfrac) / proton_mass;
         if (r2 < (rCore*rCore) & hydrogen_densities[i] > 1 & gas_temperatures[i] < 8000) {
-            Lsum[0] += gas_masses[i]*(  
+            Lsum[0] += gas_masses[0][i]*(  
                        gas_positions[i][1]*gas_velocities[i][2] 
                        - gas_positions[i][2]*gas_velocities[i][1]);
-            Lsum[1] += gas_masses[i]*( 
+            Lsum[1] += gas_masses[0][i]*( 
                        gas_positions[i][2]*gas_velocities[i][0] 
                        - gas_positions[i][0]*gas_velocities[i][2]);
-            Lsum[2] += gas_masses[i]*( 
+            Lsum[2] += gas_masses[0][i]*( 
                        gas_positions[i][0]*gas_velocities[i][1] 
                        - gas_positions[i][1]*gas_velocities[i][0]);
+        }
     }
     MPI_Reduce( &Lsum, &Lranksum, 3, MPI_DOUBLE, MPI_SUM, 0, new_comm);
 
@@ -271,4 +275,4 @@ double* find_disk_orientation(double *hydrogen_densities, double **gas_positions
     MPI_Barrier(new_comm);
     return Lhat;
 }
-*/
+
