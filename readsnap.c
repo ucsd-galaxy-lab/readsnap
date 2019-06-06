@@ -142,8 +142,8 @@ struct dataStruct {
   int *cids;
   double *ElectronAbundance;
   double *NeutralHydrogenAbundance;
-  double *smoothingLengths;
-  double *internalEnergy;
+  double *SmoothingLength;
+  double *InternalEnergy;
   int len[2];
 };
 
@@ -382,8 +382,26 @@ struct dataStruct readsnap(char *fileName, int ptype, char **params, int num_par
         status = H5Dread(dset_id,dtype,memspace,dataspace,H5P_DEFAULT,dataStruct.metallicity[0]);
       }
 
-        
-        
+      if (strcmp(name, "NeutralHydrogenAbundance")==0){
+        dataStruct.NeutralHydrogenAbundance = (double *) malloc (dims[0] * sizeof (double));
+        status = H5Dread(dset_id,dtype,H5S_ALL,H5S_ALL,H5P_DEFAULT,dataStruct.NeutralHydrogenAbundance);
+      }
+
+      if (strcmp(name, "ElectronAbundance")==0){
+        dataStruct.ElectronAbundance = (double *) malloc (dims[0] * sizeof (double));
+        status = H5Dread(dset_id,dtype,H5S_ALL,H5S_ALL,H5P_DEFAULT,dataStruct.ElectronAbundance);
+      }
+
+      if (strcmp(name, "SmoothingLength")==0){
+        dataStruct.SmoothingLength = (double *) malloc (dims[0] * sizeof (double));
+        status = H5Dread(dset_id,dtype,H5S_ALL,H5S_ALL,H5P_DEFAULT,dataStruct.SmoothingLength);
+      }
+
+      if (strcmp(name, "InternalEnergy")==0){
+        dataStruct.InternalEnergy = (double *) malloc (dims[0] * sizeof (double));
+        status = H5Dread(dset_id,dtype,H5S_ALL,H5S_ALL,H5P_DEFAULT,dataStruct.InternalEnergy);
+      }
+
 
 //      if (num_elems>1){
        /* Allocate array of pointers to rows.*/

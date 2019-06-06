@@ -15,19 +15,30 @@ int main( int argc, char *argv[])
   //char *file_base = "/oasis/tscc/scratch/ctrapp/m12m_res7100/output/snapdir_600/snapshot";
   char *file_base = "/oasis/scratch/comet/ctrapp/temp_project/m12m_res7100/snapdir_600/snapshot";
 
-
   int ptype;
   //struct dataArray dataArray_stars,dataArray_gas;
   struct dataStruct dataGas,dataStars;
   //double ***data_gas;
   //double ***data_stars; // data to be loaded from snapshots
   int Ngas,Nstars;
+
   char *gas_params[] = {
       "Coordinates",
       "Density",
+      "Masses",
       "Velocities",
-      "Metallicity"
+      "Metallicity",
+      "NeutralHydrogenAbundance",
+      "ElectronAbundance",
+      "SmoothingLength",
+      "InternalEnergy"
       };
+
+  //char *gas_params[] = {
+  //    "Coordinates",
+  //    "Density",
+  //    "Masses"
+  //    };
   char *star_params[] = {
       "Coordinates",
       "Masses"
@@ -83,22 +94,32 @@ int main( int argc, char *argv[])
       //printf("Dimensions of data: params x num_particles x data_elems\n");
       //printf("%d x %d x (depends on data type)\n", dataGas.len[0],dataGas.len[1]);
   }
-  printf("Rank %d: Trying to print a thing!!\n",rank);
-  printf("Rank %d: gasMetal[0][0] is %f\n",rank,dataGas.metallicity[0][0]);
-  printf("Rank %d: gasMetal[0][1] is %f\n",rank,dataGas.metallicity[0][1]);
+  //printf("Rank %d: Trying to print a thing!!\n",rank);
+  //printf("Rank %d: gasMetal[0][0] is %f\n",rank,dataGas.metallicity[0][0]);
+  //printf("Rank %d: gasMetal[0][1] is %f\n",rank,dataGas.metallicity[0][1]);
 
   printf("Rank %d. Out of files to load\n",rank);
   printf("fileCount: %d  numFiles: %d\n",fileCount,numFiles);
   fflush(stdout);
 
+  double* nH;
+  double* NH1;
+  double* gasTemp;
   nH = calcHydrogenNumberDensity(dataGas.metallicity,dataGas.density,Ngas);
-  NH1 = calcH1Abundance(dataGas.masses,dataGas.NeutralHydrogenAbundance,dataGas.smoothingLengths,dataGas.density,dataGas.metallicity,Ngas);
-  gasTemp = calcTemperatures(dataGas.internalEnergy);
+  NH1 = calcH1Abundance(dataGas.masses,dataGas.NeutralHydrogenAbundance,dataGas.SmoothingLength,dataGas.density,dataGas.metallicity,Ngas);
+  gasTemp = calcTemperatures(dataGas.InternalEnergy,dataGas.ElectronAbundance,dataGas.metallicity,Ngas);
+
+
   double rShrinkSphere = 5000.0;
   double shrinkFactor = 0.7;
   double rMinSphere = 10.0;
   int numFilesPerSnap = 4;
-  shrinking_sphere_parallel(dataGas.density, dataGas.coordinates, Ngas, dataStars.masses, dataStars.coordinates , Nstars, numFilesPerSnap, rShrinkSphere, shrinkFactor, rMinSphere);
+  double* pos_center;
+  double* Lhat;
+  pos_center = shrinking_sphere_parallel(dataGas.density, dataGas.coordinates, Ngas, dataStars.masses, dataStars.coordinates , Nstars, numFilesPerSnap, rShrinkSphere, shrinkFactor, rMinSphere);
+
+  Lhat = find_disk_orientation(nH, dataGas.coordinates, dataGas.masses, dataGas.velocities, gasTemp, Ngas, pos_center, numFilesPerSnap);
+  
 
   //free(dataArray_gas.data);
   //free(dataArray_stars.data);

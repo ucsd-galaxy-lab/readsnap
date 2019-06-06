@@ -7,7 +7,7 @@
 #include <unistd.h>
 #include <math.h>
 
-int shrinking_sphere_parallel(double *gas_densities, double **gas_positions, int Ngas, double *masses, double **positions, int Nstars, int numFilesPerSnap, double rShrinkSphere, double shrinkFactor, double rMinSphere)
+double* shrinking_sphere_parallel(double *gas_densities, double **gas_positions, int Ngas, double *masses, double **positions, int Nstars, int numFilesPerSnap, double rShrinkSphere, double shrinkFactor, double rMinSphere)
 {
 //Find the maximum density as first guess for center
     int rank,group_number,group_rank,numtasks;
@@ -15,6 +15,9 @@ int shrinking_sphere_parallel(double *gas_densities, double **gas_positions, int
     int group_ranks[numFilesPerSnap];
     int maxrank,maxindex;
     double pos_center[3];
+    double* to_return;
+    to_return = (double *) malloc(3*sizeof(double));
+
     MPI_Status status;
    
     MPI_Comm_rank(MPI_COMM_WORLD,&rank);
@@ -48,12 +51,10 @@ int shrinking_sphere_parallel(double *gas_densities, double **gas_positions, int
         double value;
         int idx_rank;
     } in, out;
-    printf("Rank %d: Ping\n",rank);
-    fflush(stdout);
+
     in.value = gas_densities[0];
     in.idx_rank = group_rank;
-    printf("Rank %d: initialized in/out\n",rank);
-    fflush(stdout);
+
 
 
 /*Find the maximum value on this rank*/
@@ -68,7 +69,7 @@ int shrinking_sphere_parallel(double *gas_densities, double **gas_positions, int
     //in.index=rank*Ngas+in.index; //Define a global index
 /*Pass Maximum Value to Reduction Algorithm*/
     MPI_Reduce( &in, &out , 1, MPI_DOUBLE_INT, MPI_MAXLOC, 0, new_comm);
-
+    MPI_Barrier(new_comm);
 /*Maximum resides in root*/
 
     if (group_rank==0) {
@@ -81,6 +82,7 @@ int shrinking_sphere_parallel(double *gas_densities, double **gas_positions, int
         fflush(stdout);
     }
     MPI_Bcast(&maxrank,1,MPI_INT,0,new_comm);
+    MPI_Barrier(new_comm);
         //MPI_Bcast(&maxindex,1,MPI_INT,0,new_comm);
    // else{
    //     printf("Rank %d: Listening for broadcast...\n",rank);
@@ -97,6 +99,7 @@ int shrinking_sphere_parallel(double *gas_densities, double **gas_positions, int
         pos_center[2] = gas_positions[maxindex][2];
     }
     MPI_Bcast(&pos_center,3,MPI_DOUBLE,maxrank,new_comm);
+    MPI_Barrier(new_comm);
 
     printf("Rank %d: Identifying first guess pos_center: (%f, %f, %f)\n",rank,pos_center[0],pos_center[1],pos_center[2]);
     fflush(stdout);
@@ -179,7 +182,7 @@ int shrinking_sphere_parallel(double *gas_densities, double **gas_positions, int
 
         MPI_Reduce( &mass_sum, &mass_ranksum, 1, MPI_DOUBLE, MPI_SUM, 0, new_comm);
         MPI_Reduce( &mw_pos_sum, &mw_pos_ranksum, 3, MPI_DOUBLE, MPI_SUM, 0, new_comm);
- 
+
         old_pos[0] = pos_center[0];
         old_pos[1] = pos_center[1];
         old_pos[2] = pos_center[2];
@@ -200,11 +203,12 @@ int shrinking_sphere_parallel(double *gas_densities, double **gas_positions, int
     printf("Rank %d: Wiggled sphere %d times!\n",rank,wiggles);
     printf("Final Central Position is: (%f, %f, %f)\n",pos_center[0],pos_center[1],pos_center[2]);
     fflush(stdout);
-    return 0;
+    to_return = pos_center;
+    return to_return;
 }
 
 
-double* find_disk_orientation(double *hydrogen_densities, double **gas_positions, double **gas_masses, double **gas_velocities, double *gas_temperatures, int Ngas, double pos_center[], int numFilesPerSnap)
+double* find_disk_orientation(double *hydrogen_densities, double **gas_positions, double *gas_masses, double **gas_velocities, double *gas_temperatures, int Ngas, double* pos_center, int numFilesPerSnap)
 {
 
     int rank,group_number,group_rank,numtasks;
@@ -244,8 +248,9 @@ double* find_disk_orientation(double *hydrogen_densities, double **gas_positions
     double Lsum[3],Lranksum[3],Lmag;
     double r2,dx,dy,dz;
     double rCore=10;
-    double *Lhat;
-    Lhat = (double *) malloc (3 * sizeof (double));
+    double Lhat[3],Lavg[3];
+    double* toReturn;
+    toReturn = (double *) malloc (3 * sizeof (double));
 
     for (i=0;i<Ngas;i++) {
         dx = gas_positions[i][0]-pos_center[0];
@@ -255,13 +260,13 @@ double* find_disk_orientation(double *hydrogen_densities, double **gas_positions
       //  h_massfrac = 1 - (gas_metallicities[i][0]+gas_metallicities[i][1]);
       //  nH = (gas_densities[0][i]*h_massfrac) / proton_mass;
         if (r2 < (rCore*rCore) & hydrogen_densities[i] > 1 & gas_temperatures[i] < 8000) {
-            Lsum[0] += gas_masses[0][i]*(  
+            Lsum[0] += gas_masses[i]/Ngas*(  
                        gas_positions[i][1]*gas_velocities[i][2] 
                        - gas_positions[i][2]*gas_velocities[i][1]);
-            Lsum[1] += gas_masses[0][i]*( 
+            Lsum[1] += gas_masses[i]/Ngas*( 
                        gas_positions[i][2]*gas_velocities[i][0] 
                        - gas_positions[i][0]*gas_velocities[i][2]);
-            Lsum[2] += gas_masses[0][i]*( 
+            Lsum[2] += gas_masses[i]/Ngas*( 
                        gas_positions[i][0]*gas_velocities[i][1] 
                        - gas_positions[i][1]*gas_velocities[i][0]);
         }
@@ -270,14 +275,18 @@ double* find_disk_orientation(double *hydrogen_densities, double **gas_positions
 
 
     if (rank==0) {
-        Lmag = sqrt( Lranksum[0]*Lranksum[0]+Lranksum[1]*Lranksum[1]+Lranksum[2]*Lranksum[2] );
-        Lhat[0] = Lranksum[0]/Lmag;
-        Lhat[1] = Lranksum[1]/Lmag;
-        Lhat[2] = Lranksum[2]/Lmag;
-        printf("Lhat is (%f,%f,%f)\n",Lhat[0],Lhat[1],Lhat[2]);
+        Lavg[0] = Lranksum[0]/numFilesPerSnap;
+        Lavg[1] = Lranksum[1]/numFilesPerSnap;
+        Lavg[2] = Lranksum[2]/numFilesPerSnap;
+        Lmag = sqrt( Lavg[0]*Lavg[0]+Lavg[1]*Lavg[1]+Lavg[2]*Lavg[2] );
+        Lhat[0] = Lavg[0]/Lmag;
+        Lhat[1] = Lavg[1]/Lmag;
+        Lhat[2] = Lavg[2]/Lmag;
+        printf("Lmag is %f, Lhat is (%f,%f,%f)\n",Lmag,Lhat[0],Lhat[1],Lhat[2]);
     }
     MPI_Bcast(&Lhat,3,MPI_DOUBLE,0,new_comm);
     MPI_Barrier(new_comm);
-    return Lhat;
+    toReturn=Lhat;
+    return toReturn;
 }
 
