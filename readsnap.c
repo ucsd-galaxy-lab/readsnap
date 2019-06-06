@@ -79,16 +79,12 @@ void read_header_attributes_in_hdf5(char *fname, struct io_header *header)
     hdf5_file = H5Fopen(fname, H5F_ACC_RDONLY, H5P_DEFAULT);
     hdf5_headergrp = H5Gopen1(hdf5_file, "/Header");
 
-    //struct io_header *retVal = malloc(sizeof(struct io_header))
-
     int temp;
     hdf5_attribute = H5Aopen_name(hdf5_headergrp, "NumPart_ThisFile");
     H5Aread(hdf5_attribute, H5T_NATIVE_INT, header->npart);
     printf("npart[0]: %d\n", (*header).npart[0]);
     fflush(stdout);
     H5Aclose(hdf5_attribute);
-    //retVal->npart = temp;
-    //*header = retVal;
     
     hdf5_attribute = H5Aopen_name(hdf5_headergrp, "NumPart_Total");
     H5Aread(hdf5_attribute, H5T_NATIVE_UINT, header->npartTotal);
@@ -259,12 +255,8 @@ struct dataStruct readsnap(char *fileName, int ptype, char **params, int num_par
   hsize_t        memCount[2],dsetCount[2];
   hsize_t        memOffset[2],dsetOffset[2];
 
-  //struct dataArray dataArray;
-  //double *buffer;
- // double ***data;
   struct dataStruct dataStruct;
   char *name;
-  //data = (double ***) malloc (num_params * sizeof (double **));
 
   int rank,numtasks;
 
@@ -402,35 +394,6 @@ struct dataStruct readsnap(char *fileName, int ptype, char **params, int num_par
         status = H5Dread(dset_id,dtype,H5S_ALL,H5S_ALL,H5P_DEFAULT,dataStruct.InternalEnergy);
       }
 
-
-//      if (num_elems>1){
-       /* Allocate array of pointers to rows.*/
-//        double **data = (double **) malloc (dims[0] * sizeof (double *));
-
-        /*Allocate space for floating point data.*/
-//        data[p_index][0] = (double *) malloc (dims[0] * dims[1] * sizeof (double));
-        /* Set the rest of the pointers to rows to the correct addresses.*/
-//        for (i=1; i<dims[0]; i++)
-//           data[p_index][i] = data[p_index][0] + i * dims[1];
-//      }
-//      else if (num_elems==1){
-          
-
-      /*Push the dataset into the position vector*/
-//      if (num_elems==1){ // In case the data is a 1D array
-//        buffer = (double *) malloc (N * sizeof (double));
-/*        fflush(stdout);
-        status = H5Dread(dset_id,dtype,H5S_ALL,H5S_ALL,H5P_DEFAULT,buffer);
-        printf("Rank %d: buffer[0] element: %f\n",rank, buffer[0]);
-        fflush(stdout);
-        data[p_index][0] = buffer;
-        printf("Rank %d: data[0][0] element: %f\n",rank, data[p_index][0][0]);
-        fflush(stdout);
-        //free(buffer);
-
-      }
-      else status = H5Dread(dset_id,dtype,memspace,dataspace,H5P_DEFAULT,data[p_index][0]); //memspace/dataspace not needed for nonparallel version.
-*/
       H5Tclose(dtype);
       H5Sclose(memspace);
       H5Sclose(dataspace);
@@ -438,8 +401,6 @@ struct dataStruct readsnap(char *fileName, int ptype, char **params, int num_par
 
     }
   }
-
-  //dataArray.data = data;
   dataStruct.len[0]=num_params; dataStruct.len[1]=N;
 
   return dataStruct;

@@ -76,21 +76,12 @@ double* shrinking_sphere_parallel(double *gas_densities, double **gas_positions,
         printf("Finding maximum density location\n");
         fflush(stdout);
         maxrank = out.idx_rank;
-        //maxindex = out.index % Ngas;
         /*Sends the rank and index to all ranks in group*/
         printf("Broadcasting maximum density location\n");
         fflush(stdout);
     }
     MPI_Bcast(&maxrank,1,MPI_INT,0,new_comm);
     MPI_Barrier(new_comm);
-        //MPI_Bcast(&maxindex,1,MPI_INT,0,new_comm);
-   // else{
-   //     printf("Rank %d: Listening for broadcast...\n",rank);
-   //     fflush(stdout);
-   //     MPI_Recv(&maxrank, 1, MPI_INT, 0, 0, new_comm, &status);
-   //     printf("Rank %d:Broadcast recieved!\n",rank);
-   //     fflush(stdout);
-   // }
     MPI_Barrier(new_comm); /*Make sure everything is synced up Needed here? */
     /*Find the initial guess for central position*/
     if (group_rank==maxrank) {
@@ -257,8 +248,6 @@ double* find_disk_orientation(double *hydrogen_densities, double **gas_positions
         dy = gas_positions[i][1]-pos_center[1];
         dz = gas_positions[i][2]-pos_center[2];
         r2 = dx*dx+dy*dy+dz*dz;
-      //  h_massfrac = 1 - (gas_metallicities[i][0]+gas_metallicities[i][1]);
-      //  nH = (gas_densities[0][i]*h_massfrac) / proton_mass;
         if (r2 < (rCore*rCore) & hydrogen_densities[i] > 1 & gas_temperatures[i] < 8000) {
             Lsum[0] += gas_masses[i]/Ngas*(  
                        gas_positions[i][1]*gas_velocities[i][2] 
