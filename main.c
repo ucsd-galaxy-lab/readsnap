@@ -32,12 +32,13 @@ int main( int argc, char *argv[])
       };
   char *star_params[] = {
       "Coordinates",
-      "Masses"
+      "Masses",
+      "Velocities"
       };
   int num_gas_params = sizeof(gas_params)/sizeof(gas_params[0]);
   int num_star_params = sizeof(star_params)/sizeof(star_params[0]);
 
-  int minSnapNum = 599;
+  int minSnapNum = 600;
   int maxSnapNum = 600;
   int snapStep = 1;
 
@@ -82,6 +83,7 @@ int main( int argc, char *argv[])
   double shrinkFactor = 0.7;
   double rMinSphere = 10.0;
   double* pos_center;
+  double* vel_center;
   double* Lhat;
 
   // Now go through files taking strides of numtasks until all files have been read and ata processed
@@ -107,9 +109,12 @@ int main( int argc, char *argv[])
     NH1 = calcH1Abundance(dataGas.masses,dataGas.NeutralHydrogenAbundance,dataGas.SmoothingLength,dataGas.density,dataGas.metallicity,Ngas);
     gasTemp = calcTemperatures(dataGas.InternalEnergy,dataGas.ElectronAbundance,dataGas.metallicity,Ngas);
 
+
     pos_center = shrinking_sphere_parallel(dataGas.density, dataGas.coordinates, Ngas, dataStars.masses, dataStars.coordinates , Nstars, numFilesPerSnap, rShrinkSphere, shrinkFactor, rMinSphere);
 
-    Lhat = find_disk_orientation(nH, dataGas.coordinates, dataGas.masses, dataGas.velocities, gasTemp, Ngas, pos_center, numFilesPerSnap);
+    vel_center = center_of_mass_velocity(dataStars.masses, dataStars.velocities, dataStars.coordinates, pos_center, Nstars, numFilesPerSnap);
+
+    Lhat = find_disk_orientation(nH, dataGas.coordinates, dataGas.masses, dataGas.velocities, gasTemp, Ngas, vel_center, pos_center, numFilesPerSnap);
 
     fileCount+=numtasks;
   }

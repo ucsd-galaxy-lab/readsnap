@@ -82,7 +82,9 @@ struct dataStruct readsnap(char *fileName, int ptype, char **params, int num_par
 
 double* shrinking_sphere_parallel(double *gas_densities, double **gas_positions, int Ngas, double *masses, double **positions, int Nstars, int numFilesPerSnap, double rShrinkSphere, double shrinkFactor, double rMinSphere);
 
-double* find_disk_orientation(double *hydrogen_densities, double **gas_positions, double *gas_masses, double **gas_velocities, double *gas_temperatures, int Ngas, double *pos_center,int numFilesPerSnapshot);
+double* center_of_mass_velocity(double *masses, double **velocities, double **positions, double *pos_center, int Npart, int numFilesPerSnap);
+
+double* find_disk_orientation(double *hydrogen_densities, double **gas_positions, double *gas_masses, double **gas_velocities, double *gas_temperatures, int Ngas, double *pos_center,double *vel_center,int numFilesPerSnapshot);
 
 double* calcHydrogenNumberDensity(double** gas_metallicities, double* gas_densities, int Ngas);
 
