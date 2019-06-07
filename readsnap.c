@@ -197,7 +197,6 @@ void getFileNames(char *dirc, char *fname_base, int minSnapNum, int maxSnapNum, 
       strcat(fnamePart,fname_base);
       sprintf(toAppend,"_%d.%d.hdf5",fileIdx,filePartIdx);
       strcat(fnamePart,toAppend);
-
       if( access( fnamePart, F_OK) != -1) {
         filePartIdx = filePartIdx+1;
         numFiles = numFiles+1;
@@ -241,8 +240,12 @@ void getFileNames(char *dirc, char *fname_base, int minSnapNum, int maxSnapNum, 
       } else {
         fileIdx=fileIdx-1;
         filePartIdx=0;
+        sprintf(toAppend,"_%d/",fileIdx);
+        strcpy(fnamePart,dirc);
+        strcat(fnamePart,"snapdir");
+        strcat(fnamePart,toAppend);
+        strcat(fnamePart,fname_base);
         sprintf(toAppend,"_%d.%d.hdf5",fileIdx,filePartIdx);
-        strcpy(fnamePart,fname_base);
         strcat(fnamePart,toAppend);
         strcpy(fileArray[i],fnamePart);
         filePartIdx=filePartIdx+1;

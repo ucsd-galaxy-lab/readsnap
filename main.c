@@ -38,7 +38,7 @@ int main( int argc, char *argv[])
   int num_gas_params = sizeof(gas_params)/sizeof(gas_params[0]);
   int num_star_params = sizeof(star_params)/sizeof(star_params[0]);
 
-  int minSnapNum = 600;
+  int minSnapNum = 599;
   int maxSnapNum = 600;
   int snapStep = 1;
 
@@ -62,6 +62,9 @@ int main( int argc, char *argv[])
   int numFiles = files.len;
   int numFilesPerSnap = files.filesPerSnap;
 
+
+  //MPI_Finalize();
+  //return 0;
 
   // Check that we have the right number of nodes for the given number of files per snapshot
   MPI_Barrier(MPI_COMM_WORLD);
