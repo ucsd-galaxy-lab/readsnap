@@ -38,7 +38,7 @@ int main( int argc, char *argv[])
   int num_gas_params = sizeof(gas_params)/sizeof(gas_params[0]);
   int num_star_params = sizeof(star_params)/sizeof(star_params[0]);
 
-  int minSnapNum = 598;
+  int minSnapNum = 597;
   int maxSnapNum = 600;
   int snapStep = 1;
 
@@ -70,9 +70,6 @@ int main( int argc, char *argv[])
   int numFiles = files.len;
   int numFilesPerSnap = files.filesPerSnap;
 
-
-  //MPI_Finalize();
-  //return 0;
 
   // Check that we have the right number of nodes for the given number of files per snapshot
   MPI_Barrier(MPI_COMM_WORLD);
@@ -114,11 +111,17 @@ int main( int argc, char *argv[])
     dataStars = readsnap(files.fileArray[fileCount], ptype, star_params, num_star_params);
     Nstars = dataStars.len[1];
 
+    fileCount+=numtasks;
+        printf("Rank %d: calculating parameters\n",rank);
+    fflush(stdout);
     
 
     nH = calcHydrogenNumberDensity(dataGas.metallicity,dataGas.density,Ngas);
     NH1 = calcH1Abundance(dataGas.masses,dataGas.NeutralHydrogenAbundance,dataGas.SmoothingLength,dataGas.density,dataGas.metallicity,Ngas);
     gasTemp = calcTemperatures(dataGas.InternalEnergy,dataGas.ElectronAbundance,dataGas.metallicity,Ngas);
+
+    printf("Rank %d: finding galactic disk\n",rank);
+    fflush(stdout);
 
 
     pos_center = shrinking_sphere_parallel(dataGas.density, dataGas.coordinates, Ngas, dataStars.masses, dataStars.coordinates , Nstars, numFilesPerSnap, rShrinkSphere, shrinkFactor, rMinSphere);
@@ -126,8 +129,32 @@ int main( int argc, char *argv[])
     vel_center = center_of_mass_velocity(dataStars.masses, dataStars.velocities, dataStars.coordinates, pos_center, Nstars, numFilesPerSnap);
 
     Lhat = find_disk_orientation(nH, dataGas.coordinates, dataGas.masses, dataGas.velocities, gasTemp, Ngas, vel_center, pos_center, numFilesPerSnap);
+ 
 
-    fileCount+=numtasks;
+
+    // free up all the memory we had returned
+    free(dataGas.coordinates);
+    free(dataGas.velocities);
+    free(dataGas.metallicity);
+    free(dataGas.masses);
+    free(dataGas.density);
+    //free(dataGas.pids);
+    //free(dataGas.cids);
+    free(dataGas.ElectronAbundance);
+    free(dataGas.NeutralHydrogenAbundance);
+    free(dataGas.SmoothingLength);
+    free(dataGas.InternalEnergy);
+    //free(dataGas.len);
+    //free(dataGas);
+    free(dataStars.coordinates);
+    free(dataStars.velocities);
+    //free(dataStars.metallicity);
+    free(dataStars.masses);
+    //free(dataStars.len);
+    //free(dataStars);
+    //free(pos_center);
+    //free(vel_center);
+    //free(Lhat);
   }
 
   printf("Rank %d. Out of files to load\n",rank);

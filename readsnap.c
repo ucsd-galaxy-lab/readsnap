@@ -361,13 +361,13 @@ struct dataStruct readsnap(char *fileName, int ptype, char **params, int num_par
       }
 
       if (strcmp(name, "Density")==0){
-        dataStruct.density = (double *) malloc (dims[0] * sizeof (double));
+        dataStruct.density = (double *) malloc (dims[1] * sizeof (double));
         status = H5Dread(dset_id,dtype,H5S_ALL,H5S_ALL,H5P_DEFAULT,dataStruct.density);
         
       }
 
       if (strcmp(name, "Masses")==0){
-        dataStruct.masses = (double *) malloc (dims[0] * sizeof (double));
+        dataStruct.masses = (double *) malloc (dims[1] * sizeof (double));
         status = H5Dread(dset_id,dtype,H5S_ALL,H5S_ALL,H5P_DEFAULT,dataStruct.masses);
       }
 
@@ -379,22 +379,22 @@ struct dataStruct readsnap(char *fileName, int ptype, char **params, int num_par
       }
 
       if (strcmp(name, "NeutralHydrogenAbundance")==0){
-        dataStruct.NeutralHydrogenAbundance = (double *) malloc (dims[0] * sizeof (double));
+        dataStruct.NeutralHydrogenAbundance = (double *) malloc (dims[1] * sizeof (double));
         status = H5Dread(dset_id,dtype,H5S_ALL,H5S_ALL,H5P_DEFAULT,dataStruct.NeutralHydrogenAbundance);
       }
 
       if (strcmp(name, "ElectronAbundance")==0){
-        dataStruct.ElectronAbundance = (double *) malloc (dims[0] * sizeof (double));
+        dataStruct.ElectronAbundance = (double *) malloc (dims[1] * sizeof (double));
         status = H5Dread(dset_id,dtype,H5S_ALL,H5S_ALL,H5P_DEFAULT,dataStruct.ElectronAbundance);
       }
 
       if (strcmp(name, "SmoothingLength")==0){
-        dataStruct.SmoothingLength = (double *) malloc (dims[0] * sizeof (double));
+        dataStruct.SmoothingLength = (double *) malloc (dims[1] * sizeof (double));
         status = H5Dread(dset_id,dtype,H5S_ALL,H5S_ALL,H5P_DEFAULT,dataStruct.SmoothingLength);
       }
 
       if (strcmp(name, "InternalEnergy")==0){
-        dataStruct.InternalEnergy = (double *) malloc (dims[0] * sizeof (double));
+        dataStruct.InternalEnergy = (double *) malloc (dims[1] * sizeof (double));
         status = H5Dread(dset_id,dtype,H5S_ALL,H5S_ALL,H5P_DEFAULT,dataStruct.InternalEnergy);
       }
 
