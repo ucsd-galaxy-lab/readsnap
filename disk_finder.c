@@ -28,8 +28,6 @@ double* shrinking_sphere_parallel(double *gas_densities, double **gas_positions,
     MPI_Group orig_group, new_group;
     MPI_Comm new_comm;
 
-    printf("ping\n");
-    fflush(stdout);
     MPI_Comm_group(MPI_COMM_WORLD, &orig_group);
     group_number = rank / numFilesPerSnap;
     group_rank = rank % numFilesPerSnap;
@@ -39,12 +37,8 @@ double* shrinking_sphere_parallel(double *gas_densities, double **gas_positions,
         group_ranks[i] = group_number*numFilesPerSnap + i;
     }
 
-    printf("Rank %d: Defining new subgroup\n",rank);
-    fflush(stdout);
     //Define subgroup of only tasks working on a single snapshot
     MPI_Group_incl(orig_group, numFilesPerSnap, group_ranks, &new_group);
-    printf("Rank %d: Defining new comm\n",rank);
-    fflush(stdout);
     MPI_Comm_create(MPI_COMM_WORLD, new_group, &new_comm);
     
     struct {
@@ -57,7 +51,7 @@ double* shrinking_sphere_parallel(double *gas_densities, double **gas_positions,
 
 
 
-/*Find the maximum value on this rank*/
+    /*Find the maximum value on this rank*/
     for (i=1; i < Ngas; i++){
         if (in.value < gas_densities[i]) {
             in.value = gas_densities[i];
@@ -66,11 +60,11 @@ double* shrinking_sphere_parallel(double *gas_densities, double **gas_positions,
     }
     printf("Rank %d: looped over in/out\n",rank);
     fflush(stdout);
-    //in.index=rank*Ngas+in.index; //Define a global index
-/*Pass Maximum Value to Reduction Algorithm*/
+
+    /*Pass Maximum Value to Reduction Algorithm*/
     MPI_Reduce( &in, &out , 1, MPI_DOUBLE_INT, MPI_MAXLOC, 0, new_comm);
     MPI_Barrier(new_comm);
-/*Maximum resides in root*/
+    /*Maximum resides in root*/
 
     if (group_rank==0) {
         printf("Finding maximum density location\n");
@@ -83,14 +77,7 @@ double* shrinking_sphere_parallel(double *gas_densities, double **gas_positions,
     }
     MPI_Bcast(&maxrank,1,MPI_INT,0,new_comm);
     MPI_Barrier(new_comm);
-        //MPI_Bcast(&maxindex,1,MPI_INT,0,new_comm);
-   // else{
-   //     printf("Rank %d: Listening for broadcast...\n",rank);
-   //     fflush(stdout);
-   //     MPI_Recv(&maxrank, 1, MPI_INT, 0, 0, new_comm, &status);
-   //     printf("Rank %d:Broadcast recieved!\n",rank);
-   //     fflush(stdout);
-   // }
+
     MPI_Barrier(new_comm); /*Make sure everything is synced up Needed here? */
     /*Find the initial guess for central position*/
     if (group_rank==maxrank) {
@@ -209,7 +196,7 @@ double* shrinking_sphere_parallel(double *gas_densities, double **gas_positions,
     to_return[2] = pos_center[2];
     /*               */
 
-//Star positions correct here...
+    //Star positions correct here...
     return to_return;
 }
 
@@ -247,12 +234,9 @@ double* center_of_mass_velocity(double *masses, double **velocities, double **po
         group_ranks[i] = group_number*numFilesPerSnap + i;
     }
 
-    printf("Rank %d: Defining new subgroup\n",rank);
-    fflush(stdout);
     //Define subgroup of only tasks working on a single snapshot
     MPI_Group_incl(orig_group, numFilesPerSnap, group_ranks, &new_group);
-    printf("Rank %d: Defining new comm\n",rank);
-    fflush(stdout);
+
     MPI_Comm_create(MPI_COMM_WORLD, new_group, &new_comm);
 
     for (i=0;i<Npart;i++){
@@ -319,12 +303,9 @@ double* find_disk_orientation(double *hydrogen_densities, double **gas_positions
         group_ranks[i] = group_number*numFilesPerSnap + i;
     }
 
-    printf("Rank %d: Defining new subgroup\n",rank);
-    fflush(stdout);
     //Define subgroup of only tasks working on a single snapshot
     MPI_Group_incl(orig_group, numFilesPerSnap, group_ranks, &new_group);
-    printf("Rank %d: Defining new comm\n",rank);
-    fflush(stdout);
+
     MPI_Comm_create(MPI_COMM_WORLD, new_group, &new_comm);
     
 

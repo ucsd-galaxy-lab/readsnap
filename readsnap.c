@@ -59,7 +59,6 @@ int get_values_per_blockelement(char *name, int flag_metals)
     else if (strcmp(name, "Masses") == 0 || strcmp(name, "ParticleIDs") == 0 || strcmp(name, "Density") == 0 || strcmp(name, "ElectronAbundance") == 0 || strcmp(name, "NeutralHydrogenAbundance") == 0)
       values = 1;
     else if (strcmp(name, "Metallicity") == 0){
-      printf("In Metallicity block element!\n");
       values = flag_metals; //Only take total metallicity and helium for now
     }
     else
@@ -71,9 +70,6 @@ int get_values_per_blockelement(char *name, int flag_metals)
 /* Read header attributes for file */
 void read_header_attributes_in_hdf5(char *fname, struct io_header *header)
 {
-
-    printf("File name: %s\n", fname);
-    fflush(stdout);
     hid_t hdf5_file, hdf5_headergrp, hdf5_attribute;
     
     hdf5_file = H5Fopen(fname, H5F_ACC_RDONLY, H5P_DEFAULT);
@@ -82,8 +78,6 @@ void read_header_attributes_in_hdf5(char *fname, struct io_header *header)
     int temp;
     hdf5_attribute = H5Aopen_name(hdf5_headergrp, "NumPart_ThisFile");
     H5Aread(hdf5_attribute, H5T_NATIVE_INT, header->npart);
-    printf("npart[0]: %d\n", (*header).npart[0]);
-    fflush(stdout);
     H5Aclose(hdf5_attribute);
     
     hdf5_attribute = H5Aopen_name(hdf5_headergrp, "NumPart_Total");
@@ -225,7 +219,6 @@ void getFileNames(char *dirc, char *fname_base, int minSnapNum, int maxSnapNum, 
 
     filePartIdx=0;
     fileIdx=maxSnapNum;
-    printf("maxSnapNum is now: %d\n",maxSnapNum);
     for (i=0;i<numFiles;i++) {
       sprintf(toAppend,"_%d/",fileIdx);
       strcpy(fnamePart,dirc);
@@ -256,12 +249,15 @@ void getFileNames(char *dirc, char *fname_base, int minSnapNum, int maxSnapNum, 
   // Assign the file array and size to the files struct
   files.len = numFiles;
   files.fileArray = fileArray;
+  
+  printf("Done getting files array.\n");
+  fflush(stdout);
+
 }
 
 
 /* Read position for ptype particles from file named fname */
 struct dataStruct readsnap(char *fileName, int ptype, char **params, int num_params) {
-  printf("Running Readsnap...\n");
 
   hid_t          fid,group_id,dset_id,dtype;
   hid_t          dataspace,memspace;
@@ -278,7 +274,6 @@ struct dataStruct readsnap(char *fileName, int ptype, char **params, int num_par
 
   MPI_Comm_size(MPI_COMM_WORLD,&numtasks);
   MPI_Comm_rank(MPI_COMM_WORLD,&rank);
-  printf("Rank %d: Running Readsnap...\n",rank);
 
   struct io_header header;
 
@@ -289,9 +284,6 @@ struct dataStruct readsnap(char *fileName, int ptype, char **params, int num_par
   /*  Get info from header*/
   read_header_attributes_in_hdf5(fileName, &header);
   int N = header.npart[ptype];
-  printf("Rank %d: Loading %d particles.\n",rank, N);
-  fflush(stdout);
-
   /*Open the HDF5 File*/
   fid = H5Fopen(fileName, H5F_ACC_RDONLY, H5P_DEFAULT);
 
@@ -309,8 +301,6 @@ struct dataStruct readsnap(char *fileName, int ptype, char **params, int num_par
 
     for (p_index=0;p_index<num_params;p_index++)
     {
-      printf("P_Index: %d\n",p_index);
-      fflush(stdout);
       /*Set the dataset id*/
       sprintf(dset_str,params[p_index]);
 
@@ -371,14 +361,12 @@ struct dataStruct readsnap(char *fileName, int ptype, char **params, int num_par
       }
 
       if (strcmp(name, "Density")==0){
-        printf("Rank %d: In Density!\n",rank);
         dataStruct.density = (double *) malloc (dims[0] * sizeof (double));
         status = H5Dread(dset_id,dtype,H5S_ALL,H5S_ALL,H5P_DEFAULT,dataStruct.density);
         
       }
 
       if (strcmp(name, "Masses")==0){
-        printf("Rank %d: In Masses!\n",rank);
         dataStruct.masses = (double *) malloc (dims[0] * sizeof (double));
         status = H5Dread(dset_id,dtype,H5S_ALL,H5S_ALL,H5P_DEFAULT,dataStruct.masses);
       }

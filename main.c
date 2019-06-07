@@ -38,11 +38,19 @@ int main( int argc, char *argv[])
   int num_gas_params = sizeof(gas_params)/sizeof(gas_params[0]);
   int num_star_params = sizeof(star_params)/sizeof(star_params[0]);
 
-  int minSnapNum = 599;
+  int minSnapNum = 598;
   int maxSnapNum = 600;
   int snapStep = 1;
 
+
+  double start, end;
   rc = MPI_Init(&argc, &argv);
+
+  // Get the start time
+  MPI_Barrier(MPI_COMM_WORLD);
+  start = MPI_Wtime();
+
+
   if (rc != MPI_SUCCESS) {
       printf("Error starting MPI program. Terminating.\n");
       MPI_Abort(MPI_COMM_WORLD, rc);
@@ -55,7 +63,7 @@ int main( int argc, char *argv[])
 
   // Create the array of file names 
   getFileNames(dirc, file_base, minSnapNum, maxSnapNum, snapStep);
-  printf("Number of files: %d \n", files.len);
+  printf("Number of files to read: %d \n", files.len);
   fflush(stdout);
 
   int fileCount = rank;
@@ -131,7 +139,16 @@ int main( int argc, char *argv[])
 
   //free(dataArray_gas.data);
   //free(dataArray_stars.data);
+
+  // get end time
+  MPI_Barrier(MPI_COMM_WORLD); 
+  end = MPI_Wtime();
+
   MPI_Finalize();
+
+  if (rank == 0) { /* use time on master node */
+    printf("Runtime = %f\n", end-start);
+  }
 
   return 0;
 
