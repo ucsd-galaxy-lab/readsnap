@@ -23,7 +23,7 @@ double* shrinking_sphere_parallel(double *gas_densities, double **gas_positions,
     MPI_Comm_rank(MPI_COMM_WORLD,&rank);
     MPI_Comm_size(MPI_COMM_WORLD,&numtasks);
 
-    printf("Rank %d:Starting Shrinking Sphere Function...\n",rank);
+    printf("Rank %d: Starting Shrinking Sphere Function...\n",rank);
 
     MPI_Group orig_group, new_group;
     MPI_Comm new_comm;
@@ -289,7 +289,7 @@ double* find_disk_orientation(double *hydrogen_densities, double **gas_positions
     MPI_Comm_rank(MPI_COMM_WORLD,&rank);
     MPI_Comm_size(MPI_COMM_WORLD,&numtasks);
 
-    printf("Rank %d:Starting Disk Orientation Finder...\n",rank);
+    printf("Rank %d: Starting Disk Orientation Finder...\n",rank);
 
     MPI_Group orig_group, new_group;
     MPI_Comm new_comm;

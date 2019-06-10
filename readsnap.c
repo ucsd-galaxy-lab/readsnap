@@ -341,9 +341,6 @@ struct dataStruct readsnap(char *fileName, int ptype, char **params, int num_par
       ndims = H5Sget_simple_extent_dims(space,dims,NULL);
       /*****************************************************/
 
-
-
-
       name = params[p_index];
 
       if (strcmp(name, "Coordinates")==0){

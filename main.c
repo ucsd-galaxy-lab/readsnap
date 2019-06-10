@@ -38,7 +38,7 @@ int main( int argc, char *argv[])
   int num_gas_params = sizeof(gas_params)/sizeof(gas_params[0]);
   int num_star_params = sizeof(star_params)/sizeof(star_params[0]);
 
-  int minSnapNum = 597;
+  int minSnapNum = 581;
   int maxSnapNum = 600;
   int snapStep = 1;
 
@@ -133,8 +133,11 @@ int main( int argc, char *argv[])
 
 
     // free up all the memory we had returned
+    free(dataGas.coordinates[0]);
     free(dataGas.coordinates);
+    free(dataGas.velocities[0]);
     free(dataGas.velocities);
+    free(dataGas.metallicity[0]);
     free(dataGas.metallicity);
     free(dataGas.masses);
     free(dataGas.density);
@@ -146,12 +149,17 @@ int main( int argc, char *argv[])
     free(dataGas.InternalEnergy);
     //free(dataGas.len);
     //free(dataGas);
+    free(dataStars.coordinates[0]);
     free(dataStars.coordinates);
+    free(dataStars.velocities[0]);
     free(dataStars.velocities);
     //free(dataStars.metallicity);
     free(dataStars.masses);
     //free(dataStars.len);
     //free(dataStars);
+    free(nH);
+    free(NH1);
+    free(gasTemp);
     //free(pos_center);
     //free(vel_center);
     //free(Lhat);
